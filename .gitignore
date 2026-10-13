@@ -2,6 +2,7 @@
 .devenv.flake.nix
 devenv.local.nix
 # written by `swipl pack install .`
+buildenv.sh
 status.db
 /build/
 /doc/
