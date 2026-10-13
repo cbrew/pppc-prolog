@@ -1,6 +1,7 @@
 .devenv/
-.direnv/
 .devenv.flake.nix
 devenv.local.nix
-*.o
+# written by `swipl pack install .`
+status.db
 /build/
+/doc/
