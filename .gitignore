@@ -1,0 +1,6 @@
+.devenv/
+.direnv/
+.devenv.flake.nix
+devenv.local.nix
+*.o
+/build/
