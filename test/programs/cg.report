@@ -1,0 +1,9 @@
+main 10 parallel a:distributed b:distributed i:index j:local p:distributed r:distributed x:distributed
+main 12 nested 10
+main 21 parallel i:index r:read_only rr:associative(+)
+main 26 parallel a:read_only i:index j:local p:read_only q:distributed s:local
+main 29 nested 26
+main 34 parallel i:index p:read_only pq:associative(+) q:read_only
+main 38 parallel alpha:read_only i:index p:read_only q:read_only r:distributed rr_new:associative(+) x:distributed
+main 46 parallel beta:read_only i:index p:distributed r:read_only
+main 51 parallel i:index s:associative(+) x:read_only

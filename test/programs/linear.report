@@ -1,0 +1,5 @@
+main 10 parallel a:distributed b:distributed i:index j:local x:distributed
+main 12 nested 10
+main 21 parallel a:read_only b:read_only error:associative(max) i:index j:local new_x:distributed sum:local x:read_only
+main 24 nested 21
+main 34 parallel i:index sum:associative(+) x:read_only

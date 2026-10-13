@@ -1,0 +1,2 @@
+main 8 serial dependent(a)
+main 11 parallel a:read_only i:index s:associative(+)
