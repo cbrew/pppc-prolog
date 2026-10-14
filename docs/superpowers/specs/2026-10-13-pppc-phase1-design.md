@@ -316,7 +316,11 @@ become pointers. `omp_for` emits
 for (i = lo; i <= hi; i++) { ... }
 ```
 
-Pascal `for` bounds are evaluated once before the loop. Reductions map
+Pascal `for` bounds are both evaluated once before the loop, into
+`pppc_from` and `pppc_hi`/`pppc_lo` (OpenMP may otherwise evaluate the
+initial value once per thread). Integer literals are emitted as `long`
+(`2L`), matching `integer`. A function's result (`pppc_result`) is never
+named in a data-sharing clause. Reductions map
 `+ * and or min max` to `+ * && || min max`.
 
 ## 7. CLI and API
@@ -408,7 +412,9 @@ reflected above:
   inside `semantic.pl` (5.3, 5.4).
 - `carried/3` replaces the paper's `before/2` test; locals must be wholly
   assigned; output and `var`-parameter assignment keep a loop serial (6.4).
-- After the final review: reading a `var` parameter while changing a
+- After the final review: a `var` parameter may not be a `for` control
+  variable (semantic error `bad_for_variable`); both loop bounds are
+  hoisted; integer literals are `long`; reading a `var` parameter while changing a
   global keeps a loop serial (`vparam_alias`), and a call's effects are
   limited to what the callee can reach (6.4).
 - Missing source file error; internal errors carry a reason (8).

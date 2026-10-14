@@ -6,18 +6,18 @@ test(arithmetic_parenthesised) :-
     c_expr(op2(1, [+, id(1, [a], integer), op2(1, [*, id(1, [b], integer),
                                                    iconst(1, [2], integer)], integer)],
                integer), C),
-    assertion(C == "(p_a + (p_b * 2))").
+    assertion(C == "(p_a + (p_b * 2L))").
 
 test(pascal_operators) :-
     c_expr(op2(1, [and, op2(1, ['<>', id(1, [i], integer), iconst(1, [0], integer)], boolean),
                    op1(1, [not, id(1, [p], boolean)], boolean)], boolean), C),
-    assertion(C == "((p_i != 0) && (!p_p))").
+    assertion(C == "((p_i != 0L) && (!p_p))").
 
 test(div_mod_and_widening) :-
     c_expr(op2(1, [div, id(1, [i], integer),
                    op2(1, [mod, id(1, [j], integer), iconst(1, [3], integer)], integer)],
                integer), C1),
-    assertion(C1 == "(p_i / (p_j % 3))"),
+    assertion(C1 == "(p_i / (p_j % 3L))"),
     c_expr(itor(1, [id(1, [i], integer)], real), C2),
     assertion(C2 == "((double)p_i)").
 
@@ -29,7 +29,7 @@ test(nested_index_offsets) :-
     A = id(1, [a], array(1, 3, array(0, 3, real))),
     c_expr(index(1, [index(1, [A, id(1, [i], integer)], array(0, 3, real)),
                      iconst(1, [2], integer)], real), C),
-    assertion(C == "p_a.e[p_i - 1].e[2]").
+    assertion(C == "p_a.e[p_i - 1].e[2L]").
 
 test(var_param_and_reserved_names) :-
     c_expr(op2(1, [+, vparam(1, [x], integer), id(1, [int], integer)], integer), C),
@@ -60,8 +60,9 @@ test(serial_for) :-
                    assign(5, [id(5, [s], integer), id(5, [i], integer)], void)], void), C),
     lines(C, Lines),
     assertion(Lines == [ "{",
+                         "    long pppc_from = 1L;",
                          "    long pppc_hi = p_n;",
-                         "    for (p_i = 1; p_i <= pppc_hi; p_i++) { /* line 4 */",
+                         "    for (p_i = pppc_from; p_i <= pppc_hi; p_i++) { /* line 4 */",
                          "        p_s = p_i; /* line 5 */",
                          "    }",
                          "}" ]).
@@ -70,7 +71,7 @@ test(omp_for_pragma) :-
     c_stmt(omp_for(4, [id(4, [i], integer), id(4, [n], integer), iconst(4, [1], integer), down,
                        empty(4, [], void),
                        [private([t]), shared([a, b]), reduction(max, [e])]], void), C),
-    assertion(sub_string(C, _, _, _, "long pppc_lo = 1;\n    #pragma omp parallel for private(p_t) shared(p_a, p_b) reduction(max:p_e)\n    for (p_i = p_n; p_i >= pppc_lo; p_i--) {")).
+    assertion(sub_string(C, _, _, _, "long pppc_from = p_n;\n    long pppc_lo = 1L;\n    #pragma omp parallel for private(p_t) shared(p_a, p_b) reduction(max:p_e)\n    for (p_i = pppc_from; p_i >= pppc_lo; p_i--) {")).
 
 test(zero_assignment) :-
     c_stmt(zero_assign(3, [id(3, [v], array(1, 5, real))], void), C),
@@ -92,6 +93,12 @@ test(typedefs_inner_first) :-
     once(sub_string(C, B2, _, _, "typedef struct { pppc_t1 e[2]; } pppc_t2;")),
     assertion(B1 < B2),
     assertion(sub_string(C, _, _, _, "static pppc_t2 p_m;")).
+
+%   Pascal integer is C long: literals must be long too, or n * n
+%   overflows int and printf("%ld") gets an int.
+test(integer_literals_are_long) :-
+    c_expr(op2(1, [*, iconst(1, [100000], integer), iconst(1, [100000], integer)], integer), C),
+    assertion(C == "(100000L * 100000L)").
 
 %   lines(+Text, -Lines): split generated code into lines, dropping the
 %   empty string after the final newline.

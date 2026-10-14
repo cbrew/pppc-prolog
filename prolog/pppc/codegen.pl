@@ -24,7 +24,11 @@ Mapping (spec section 6.5):
   - Pascal names              -> p_name (see c_name/2)
   - var parameters            -> pointers, referenced as (*p_x)
   - function result           -> local pppc_result, returned at the end
-  - for bounds                -> evaluated once into pppc_hi / pppc_lo
+  - integer literals          -> long literals (2L), since integer is long
+  - for bounds                -> both evaluated once, into pppc_from and
+                                 pppc_hi / pppc_lo (under OpenMP the
+                                 initial value may otherwise be evaluated
+                                 once per thread)
 */
 
 %!  generate_c(+Typed, -CText:string) is det.
@@ -286,14 +290,17 @@ stmt(write(L, [NL, Args], _), Ind, Types) --> !,
 stmts([], _, _) --> [].
 stmts([S|Ss], Ind, Types) --> stmt(S, Ind, Types), stmts(Ss, Ind, Types).
 
-%   Pascal evaluates the bounds once; the limit is kept in a temporary.
+%   Pascal evaluates both bounds once, before the loop, so both go into
+%   temporaries. For an omp_for this also matters for side effects: the
+%   init expression of an OpenMP loop may be evaluated by every thread.
 for_loop(L, V, F, T, D, Body, Pragma, Ind, Types) -->
     { Ind1 is Ind + 1, Ind2 is Ind + 2,
       direction(D, Lim, Cmp, Step) },
     indent(Ind), "{\n",
+    indent(Ind1), "long pppc_from = ", expr(F, Types), ";\n",
     indent(Ind1), fmt("long ~w = ", [Lim]), expr(T, Types), ";\n",
     pragma(Pragma, Ind1),
-    indent(Ind1), "for (", expr(V, Types), " = ", expr(F, Types), "; ",
+    indent(Ind1), "for (", expr(V, Types), " = pppc_from; ",
     expr(V, Types), fmt(" ~w ~w; ", [Cmp, Lim]), expr(V, Types), Step, ") {",
     line_comment(L), "\n",
     stmt(Body, Ind2, Types),
@@ -352,7 +359,7 @@ call_arg(Types, E) --> expr(E, Types).
 expr(id(_, [N], _), _) --> cname(N).
 expr(vparam(_, [N], _), _) --> "(*", cname(N), ")".
 expr(fresult(_, _, _), _) --> "pppc_result".
-expr(iconst(_, [N], _), _) --> fmt("~d", [N]).
+expr(iconst(_, [N], _), _) --> fmt("~dL", [N]).
 expr(fconst(_, [R], _), _) --> fmt("~w", [R]).
 expr(bconst(_, [B], _), _) --> atom(B).
 expr(string(_, [Cs], _), _) --> "\"", c_string(Cs), "\"".

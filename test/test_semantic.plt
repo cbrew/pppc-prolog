@@ -113,4 +113,11 @@ test(arg_count) :-
     check("program t;\nprocedure p(a: integer); begin end;\nbegin p(1, 2) end.", _, Errs),
     assertion(Errs == [pppc(semantic(3, arg_count(p, 1, 2)))]).
 
+%   A var parameter cannot be a for control variable (ISO Pascal
+%   requires a variable of the routine; OpenMP cannot iterate (*k)).
+test(var_param_for_variable) :-
+    check("program t;\nvar s: integer;\nprocedure p(var k: integer);\n\c
+           begin for k := 1 to 10 do s := s + k end;\nbegin end.", _, Errs),
+    assertion(Errs == [pppc(semantic(4, bad_for_variable))]).
+
 :- end_tests(semantic).

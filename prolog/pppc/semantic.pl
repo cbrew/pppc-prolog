@@ -283,7 +283,7 @@ stmt(for(L, [Var, From, To, Dir, Body]), Env,
      for(L, [TVar, TFrom, TTo, Dir, TBody], void)) -->
     variable(Var, Env, TVar),
     (   { type_of(TVar, T), memberchk(T, [integer, error]),
-          memberchk(TVar, [id(_, _, _), vparam(_, _, _)]) }
+          TVar = id(_, _, _) }
     ->  []
     ;   report(L, bad_for_variable)
     ),

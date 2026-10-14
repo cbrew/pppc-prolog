@@ -83,4 +83,15 @@ test(var_param_read_with_local_changes_only) :-
     analyse_program(T, [_, routine(p, _, [loop(_, 4, V, _)], _)]),
     assertion(V == parallel).
 
+%   A function's result lives in pppc_result, not in a C variable with
+%   the function's name, so it must not appear in data-sharing clauses.
+test(function_result_not_in_clauses) :-
+    typed("program t;\nconst n = 9; type vec = array[1..n] of integer;\n\c
+           function sq: vec; var i: integer;\n\c
+           begin for i := 1 to n do sq[i] := i * i end;\nbegin end.", T),
+    parallelize_program(T, P, _),
+    P = program(_, [t, block(_, [_, [proc(_, [sq, _, _, block(_, [_, _, B], _)], _)], _], _)], _),
+    B = compound(_, [[omp_for(_, [_, _, _, _, _, Clauses], _)]], _),
+    assertion(Clauses == []).
+
 :- end_tests(transform).

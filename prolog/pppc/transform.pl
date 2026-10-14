@@ -48,9 +48,24 @@ transform_proc(Routines, proc(L, [N, Ps, R, block(BL, [D, P, Body], void)], void
     routine_body(N, Routines, Body, NewBody).
 
 routine_body(Name, Routines, compound(L, _, _), NewBody) :-
-    memberchk(routine(Name, LSs, Loops, _), Routines),
+    memberchk(routine(Name, LSs, Loops0, _), Routines),
+    maplist(hide_result(Name), Loops0, Loops),
     transform_seq(LSs, Loops, LSs1),
     unlabel_body(LSs1, L, NewBody).
+
+%   A function's result is stored in pppc_result, a C local declared
+%   outside the loop and so shared by default; it must not be named in
+%   a clause. (The only class it can have in a parallel loop is
+%   distributed: reading it is an error, so it is never local or
+%   associative.)
+%   (A plain helper rather than a yall lambda: a lambda that mentions a
+%   variable of the enclosing clause, like Name here, behaves differently
+%   depending on whether library(yall) was loaded when this file was
+%   compiled, unless the variable is declared with Name/[X]>>... .)
+hide_result(Name, loop(P, L, V, Classes0), loop(P, L, V, Classes)) :-
+    exclude(class_of(Name), Classes0, Classes).
+
+class_of(Name, X-_) :- X == Name.
 
                  /*******************************
                  *          ROUTINES            *
