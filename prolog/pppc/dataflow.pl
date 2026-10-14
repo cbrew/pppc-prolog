@@ -46,9 +46,10 @@ Facts (local to this module, valid only inside with_dataflow/5):
 
 :- table reach_in/3, clear/3.
 
-%!  with_dataflow(+Labelled:list, +AllVars:list, +ExitVars:list, :Goal)
 %!  with_dataflow(+Labelled:list, +AllVars:list, +ExitVars:list,
-%!                +CallVars:list, :Goal)
+%!                :Goal) is semidet.
+%!  with_dataflow(+Labelled:list, +AllVars:list, +ExitVars:list,
+%!                +CallVars:list, :Goal) is semidet.
 %
 %   Run Goal with the dataflow facts for the routine body Labelled
 %   loaded. AllVars are all variables visible in the routine; ExitVars
