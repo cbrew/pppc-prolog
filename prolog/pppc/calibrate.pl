@@ -14,7 +14,7 @@
 :- use_module(library(pairs)).
 :- use_module(library(pppc/cost)).
 :- use_module(library(pppc/codegen)).
-:- use_module(library(pppc/semantic), []).
+:- use_module(library(pppc/semantic), [op2_rule/4, builtin_sig/3]).
 
 /** <module> Measure a target cost table
 
@@ -84,12 +84,12 @@ write_divisor(64).
 probe(unit(loop), [], c("PPPC_BAR_long(k);")).   % or gcc deletes the loop
 probe(op2(Op/T/T), [a-T, b-T], chain(op2(0, [Op, id(0, [a], T), id(0, [b], T)], R))) :-
     required_entry(op2(Op/T/T)),
-    pppc_semantic:op2_rule(Op, T, T, R).
+    op2_rule(Op, T, T, R).
 probe(op1(Op/T), [a-T], chain(op1(0, [Op, id(0, [a], T)], T))) :-
     required_entry(op1(Op/T)).
 probe(func(F), Decls, free(builtin(0, [F, Args], R))) :-
     required_entry(func(F)),
-    once(pppc_semantic:builtin_sig(F, ArgTypes, R)),
+    once(builtin_sig(F, ArgTypes, R)),
     func_args(ArgTypes, Decls, Args).
 probe(unit(index), [a-integer],
       chain(index(0, [id(0, [v], array(1, 1024, integer)), id(0, [a], integer)], integer))).
@@ -211,7 +211,7 @@ write_main(Probes) :-
            ( K is K1 - 1,
              format("~n    { pppc_probe_~d_~d, pppc_probe_~d_~d },", [K, U1, K, U2]) )),
     format("~n};~n", []),
-    nth0(W, Probes, p(unit(write_item), _, _)), !,
+    once(nth0(W, Probes, p(unit(write_item), _, _))),
     format("static const long pppc_unroll[2] = { ~d, ~d };~n", [U1, U2]),
     format("static const long pppc_write_probe = ~d, pppc_write_divisor = ~d;~n", [W, D]),
     format("~s", [
@@ -349,7 +349,7 @@ normalise(Samples, Options, Facts) :-
     ->  true
     ;   throw(pppc(calibrate(no_signal)))
     ),
-    nth0(KL, Probes, p(unit(loop), _, _)), !,
+    once(nth0(KL, Probes, p(unit(loop), _, _))),
     unrolls(U1, _),
     median(Samples, probe(KL, U1), LoopSecs),
     Loop is LoopSecs / I,
@@ -367,8 +367,8 @@ op_time(Samples, K, E, I, T) :-
     ->  write_divisor(D), It is I // D
     ;   It = I
     ),
-    findall(T1, ( member(probe(K, U1)-S1, Samples), T1 = S1 ), S1s),
-    findall(T2, ( member(probe(K, U2)-S2, Samples), T2 = S2 ), S2s),
+    findall(S1, member(probe(K, U1)-S1, Samples), S1s),
+    findall(S2, member(probe(K, U2)-S2, Samples), S2s),
     pairs_keys_values(Pairs, S1s, S2s),
     findall(D1, ( member(A-B, Pairs), D1 is (B - A) / ((U2 - U1) * It) ), Ds),
     median_list(Ds, T).

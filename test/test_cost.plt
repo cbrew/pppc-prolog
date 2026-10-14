@@ -45,15 +45,15 @@ test(required_operators_match_semantic_pass) :-
     forall(( member(Op, [+, -, *, /, div, mod, min, max, and, or,
                          =, '<>', <, '<=', >, '>=']),
              member(L, Types), member(R, Types) ),
-           assertion(( pppc_semantic:op2_rule(Op, L, R, _)
+           assertion(( op2_rule(Op, L, R, _)
                      ->  required_entry(op2(Op/L/R))
                      ;   \+ required_entry(op2(Op/L/R)) ))),
     forall(( member(Op, [-, not]), member(T, Types) ),
-           assertion(( pppc_semantic:op1_rule(Op, T, _)
+           assertion(( op1_rule(Op, T, _)
                      ->  required_entry(op1(Op/T))
                      ;   \+ required_entry(op1(Op/T)) ))),
     forall(required_entry(func(F)),
-           assertion(pppc_semantic:builtin_name(F))).
+           assertion(builtin_name(F))).
 
 test(negative_cost, throws(pppc(bad_cost_table(_, cost(index, -1))))) :-
     variant("cost(index", "cost(index, -1).", F),

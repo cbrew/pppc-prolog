@@ -1,5 +1,9 @@
 :- module(pppc_semantic,
-          [ check_program/3             % +Tree, -Typed, -Errors
+          [ check_program/3,            % +Tree, -Typed, -Errors
+            op1_rule/3,                 % ?Op, ?Type, ?ResultType
+            op2_rule/4,                 % +Op, ?Left, ?Right, ?ResultType
+            builtin_sig/3,              % ?Name, ?ArgTypes, ?ResultType
+            builtin_name/1              % ?Name
           ]).
 :- use_module(library(assoc)).
 :- use_module(library(apply)).
@@ -475,6 +479,9 @@ const_node(boolean, L, V, bconst(L, [V], boolean)).
 type_of(Node, T) :- arg(3, Node, T).
 
 %   Operator typing, as a table in the style of the paper's op2/4.
+%   Exported, with the built-in signatures, for the cost table
+%   (pppc_cost) and calibration (pppc_calibrate). op2_rule/4 tests
+%   membership: Op must be bound.
 
 op1_rule(-, integer, integer).
 op1_rule(-, real, real).

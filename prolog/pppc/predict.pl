@@ -1,6 +1,7 @@
 :- module(pppc_predict,
           [ decide/5                    % +Routines0, +Table, +N, -Routines, -Prediction
           ]).
+:- use_module(library(aggregate)).
 :- use_module(library(apply)).
 :- use_module(library(assoc)).
 :- use_module(library(lists)).
@@ -104,6 +105,9 @@ program_time(Table, Rs, Mode, T) :-
                  *          ROUTINES            *
                  *******************************/
 
+%   env_table(+Env, -Table): the cost table of an environment.
+env_table(env(Table, _, _, _, _, _), Table).
+
 %   routine_times(+Table, +Routines, +Mode, -Times): Times maps every
 %   routine that is not on a cycle of the call graph to the time of one
 %   execution of its body. Nothing that calls such a routine can be
@@ -149,7 +153,7 @@ routine_time(env(Table, Rs, Times, Mode, _, Stack), Name, T) :-
     ).
 
 call_time(Env, Name, Args, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     routine_time(Env, Name, TB),
     unit_cost(Table, call, Call),
     args_time(Env, Args, TA),
@@ -157,7 +161,7 @@ call_time(Env, Name, Args, T) :-
 
 %   args_time(+Env, +Args, -Time): evaluating and passing Args.
 args_time(Env, Args, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     unit_cost(Table, param, Param),
     foldl(arg_time(Env, Param), Args, 0, T).
 
@@ -189,7 +193,7 @@ stmt_time(Env, lbl(_, S), T) :-
     stmt(S, Env, T).
 
 stmt(assign(_, [Target, E], _), Env, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     expr_time(Env, Target, T1),
     expr_time(Env, E, T2),
     arg(3, Target, Type),
@@ -197,14 +201,14 @@ stmt(assign(_, [Target, E], _), Env, T) :-
     unit_cost(Table, store, Store),
     T is T1 + T2 + N * Store.
 stmt(zero_assign(_, [V], _), Env, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     expr_time(Env, V, T1),
     arg(3, V, Type),
     leaves(Type, N),
     unit_cost(Table, store, Store),
     T is T1 + N * Store.
 stmt(if(_, [C, Then, Else], _), Env, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     expr_time(Env, C, TC),
     unit_cost(Table, if, If),
     stmt_time(Env, Then, TT),
@@ -219,14 +223,14 @@ stmt(compound(_, [LSs], _), Env, T) :-
 stmt(pcall(_, [Name, Args], _), Env, T) :-
     call_time(Env, Name, Args, T).
 stmt(write(_, [_, Args], _), Env, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     unit_cost(Table, write_item, W),
     foldl(arg_time(Env, W), Args, 0, T).
 stmt(empty(_, _, _), _, 0).
 
 %   while and repeat: default_trips iterations of body and condition.
 loop_time(Env, C, Body, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     trips(Table, N),
     unit_cost(Table, loop, Loop),
     expr_time(Env, C, TC),
@@ -239,14 +243,14 @@ serial_for_time(Env, for(_, [_, F, To, D, Body], _), T) :-
 
 %   parallel_for_time(+Env, +For, +P, +Reductions, -Time)
 parallel_for_time(Env, for(_, [_, F, To, D, Body], _), P, NR, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     for_parts(Env, F, To, D, Body, TBounds, Trips, TIter),
     overhead(Table, fork_join, P, FJ),
     overhead(Table, reduction, P, Red),
     T is TBounds + ((Trips + P - 1) // P) * TIter + FJ + NR * Red.
 
 for_parts(Env, F, To, D, Body, TBounds, Trips, TIter) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     expr_time(Env, F, TF),
     expr_time(Env, To, TT),
     TBounds is TF + TT,
@@ -299,7 +303,7 @@ add_leaves(_-T, N0, N) :-
 
 %   expr_time(+Env, +Expr, -Time), after the paper's cost_expr/2.
 expr_time(Env, E, T) :-
-    Env = env(Table, _, _, _, _, _),
+    env_table(Env, Table),
     expr(E, Env, Table, T).
 
 expr(id(_, _, _), _, _, 0).
