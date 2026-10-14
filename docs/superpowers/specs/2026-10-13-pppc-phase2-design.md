@@ -414,3 +414,10 @@ are the points where it departs from sections 1–7.
       and `--dump parallel` use `--threads`, `--cost` and
       `--no-prediction` (`pppc_stage/3` keeps the defaults). Speedups
       are given for every P up to 8, then powers of two, and N.
+    - OpenMP overheads (5): timed in many short blocks (default 51 of
+      200 regions per thread count and repetition), a plain region and
+      a reduction region back to back; the median over blocks ignores
+      blocks in which a thread lost its core, and the reduction's cost
+      is the median of the paired differences, not the difference of
+      two medians (which was mostly noise). Overheads at P equal to the
+      number of CPUs are only meaningful on an otherwise idle machine.

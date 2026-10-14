@@ -73,6 +73,25 @@ test(normalise) :-
                        overhead(fork_join, 2, 8000), overhead(reduction, 2, 1000) ]),
            assertion(memberchk(F, Facts))).
 
+test(reduction_from_paired_blocks) :-
+    % each block times a plain region and a reduction region back to
+    % back; one noisy block must not decide the reduction cost. Paired
+    % differences are 10, 10 and -600 ns (median 10 ns = 10 units of
+    % the canned 1 ns addition); the difference of the medians would
+    % be 300 - 500 ns.
+    canned(Samples0),
+    exclude(overhead_sample, Samples0, Ops),
+    Over = [ fork_join(1)-100.0e-9, reduction(1)-110.0e-9,
+             fork_join(1)-500.0e-9, reduction(1)-510.0e-9,
+             fork_join(1)-900.0e-9, reduction(1)-300.0e-9 ],
+    append(Ops, Over, Samples),
+    normalise(Samples, [iterations(64000)], Facts),
+    assertion(memberchk(overhead(fork_join, 1, 500), Facts)),
+    assertion(memberchk(overhead(reduction, 1, 10), Facts)).
+
+overhead_sample(fork_join(_)-_).
+overhead_sample(reduction(_)-_).
+
 test(written_table_loads) :-
     canned(Samples),
     normalise(Samples, [iterations(64000)], Facts),
@@ -94,7 +113,7 @@ test(empty_loop_is_timed) :-
     % gcc must not delete the empty loop: one iteration is at least a
     % clock cycle, far more than 0.05 ns
     calibration_c([], C),
-    pppc_calibrate:run_c(C, [iterations(1000000), repeat(1), max_threads(1), reps(10)], Out),
+    pppc_calibrate:run_c(C, [iterations(1000000), repeat(1), max_threads(1), reps(10), blocks(1)], Out),
     parse_output(Out, Samples),
     pppc_calibrate:probes(Probes),
     once(nth0(KL, Probes, p(unit(loop), _, _))),

@@ -37,9 +37,16 @@ cost their latency and one integer addition is one cycle. Inline asm
 barriers between the copies stop gcc folding the chain or removing
 the work.
 
+OpenMP overheads are timed in many short blocks of R regions, a plain
+region and one with a reduction back to back, so that a thread losing
+its core (likely when every CPU is in use) spoils a minority of blocks
+and the median ignores them. The reduction's cost is the median of the
+paired differences.
+
 Options: max_threads(N) (default: the number of CPUs), repeat(K)
-(default 5), iterations(I) (default 1000000), reps(R), the repetitions
-of each OpenMP region (default 2000).
+(default 5), iterations(I) (default 1000000), reps(R), the regions in
+a block (default 200), blocks(B), the blocks for each thread count in
+each repetition (default 51).
 */
 
 %!  calibrate(+Options, -Facts) is det.
@@ -59,7 +66,8 @@ calibrate(Options0, Facts) :-
 calibration_options(Options0, Options) :-
     current_prolog_flag(cpu_count, CPUs),
     merge_options(Options0,
-                  [max_threads(CPUs), repeat(5), iterations(1000000), reps(2000)],
+                  [ max_threads(CPUs), repeat(5), iterations(1000000),
+                    reps(200), blocks(51) ],
                   Options).
 
 %   The two unroll counts, and the divisor of the iterations for the
@@ -113,10 +121,11 @@ probes(Probes) :-
 %!  calibration_c(+Options, -CText:string) is det.
 %
 %   The C program. It is run as `prog Iterations Repeat MaxThreads
-%   Reps` and prints, for each repetition, `probe K U Seconds` for every
-%   probe K (counting from 0) and unroll count U, and `fork_join P
-%   Seconds`, `reduction P Seconds` (seconds per OpenMP region) for P
-%   in 1..MaxThreads.
+%   Reps Blocks` and prints, for each repetition, `probe K U Seconds`
+%   for every probe K (counting from 0) and unroll count U, and for P
+%   in 1..MaxThreads, Blocks pairs of lines `fork_join P Seconds`,
+%   `reduction P Seconds` (seconds per OpenMP region, timed back to
+%   back).
 calibration_c(_Options, C) :-
     probes(Probes),
     runtime_text(Runtime),
@@ -234,8 +243,8 @@ static double pppc_region(int p, long reps, int reduce)
 
 int main(int argc, char **argv)
 {
-    if (argc != 5) return 2;
-    long iters = atol(argv[1]), reps = atol(argv[4]);
+    if (argc != 6) return 2;
+    long iters = atol(argv[1]), reps = atol(argv[4]), blocks = atol(argv[5]);
     int repeat = atoi(argv[2]), maxp = atoi(argv[3]);
     long n = sizeof pppc_probes / sizeof pppc_probes[0];
     for (long k = 0; k < 1024; k++) p_v.e[k] = k + 1;   /* p_v.e[a - 1] == a */
@@ -249,10 +258,11 @@ int main(int argc, char **argv)
             for (int u = 0; u < 2; u++)
                 printf(\"probe %ld %ld %.9e\\n\", k, pppc_unroll[u], pppc_probes[k][u](it));
         }
-        for (int p = 1; p <= maxp; p++) {
-            printf(\"fork_join %d %.9e\\n\", p, pppc_region(p, reps, 0));
-            printf(\"reduction %d %.9e\\n\", p, pppc_region(p, reps, 1));
-        }
+        for (int p = 1; p <= maxp; p++)
+            for (long b = 0; b < blocks; b++) {
+                printf(\"fork_join %d %.9e\\n\", p, pppc_region(p, reps, 0));
+                printf(\"reduction %d %.9e\\n\", p, pppc_region(p, reps, 1));
+            }
     }
     return 0;
 }
@@ -289,7 +299,8 @@ run(Exe, Options, Output) :-
     option(repeat(K), Options),
     option(max_threads(P), Options),
     option(reps(R), Options),
-    maplist(to_atom, [I, K, P, R], Args),
+    option(blocks(B), Options),
+    maplist(to_atom, [I, K, P, R, B], Args),
     process_create(Exe, Args,
                    [stdout(pipe(O)), process(Pid)]),
     read_string(O, _, Output), close(O),
@@ -394,9 +405,18 @@ overhead_fact(Samples, Add, overhead(fork_join, P, C)) :-
 overhead_fact(Samples, Add, overhead(reduction, P, C)) :-
     fork_join_points(Samples, Ps),
     member(P, Ps),
-    median(Samples, fork_join(P), T0),
-    median(Samples, reduction(P), T1),
-    units(T1 - T0, Add, C).
+    findall(T, member(fork_join(P)-T, Samples), Plain),
+    findall(T, member(reduction(P)-T, Samples), Reduce),
+    (   maplist(paired_difference, Plain, Reduce, Ds)
+    ->  median_list(Ds, T),
+        units(T, Add, C)
+    ;   throw(pppc(calibrate(bad_output(unpaired(reduction(P))))))
+    ).
+
+%   The k-th reduction block of P was timed right after the k-th plain
+%   one.
+paired_difference(Plain, Reduce, D) :-
+    D is Reduce - Plain.
 
 fork_join_points(Samples, Ps) :-
     findall(P, member(fork_join(P)-_, Samples), Ps0),
