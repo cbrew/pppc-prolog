@@ -1,6 +1,7 @@
 :- module(pppc,
           [ pppc_compile/3,             % +File, +Options, -CText
             pppc_stage/3,               % +File, +Stage, -Result
+            pppc_stage/4,               % +File, +Stage, +Options, -Result
             pppc_report/2,              % +File, -Lines
             pppc_report/3,              % +File, +Options, -Lines
             pppc_predict/3              % +File, +Options, -Prediction
@@ -52,40 +53,47 @@ pppc_compile(File, Options, CText) :-
     front_end(File, Typed),
     (   option(serial(true), Options)
     ->  Program = Typed
-    ;   option(prediction(false), Options)
-    ->  pass(parallelizer, parallelize_program(Typed, Program, _))
-    ;   prediction_setup(Options, Table, N),
-        pass(parallelizer, parallelize_program(Typed, Table, N, Program, _))
+    ;   parallelized(Typed, Options, Program)
     ),
     pass(codegen, generate_c(Program, CText)).
 
+parallelized(Typed, Options, Program) :-
+    (   option(prediction(false), Options)
+    ->  pass(parallelizer, parallelize_program(Typed, Program, _))
+    ;   prediction_setup(Options, Table, N),
+        pass(parallelizer, parallelize_program(Typed, Table, N, Program, _))
+    ).
+
 %!  pppc_stage(+File, +Stage, -Result) is det.
+%!  pppc_stage(+File, +Stage, +Options, -Result) is det.
 %
 %   Run the compiler up to Stage and return its output. Stage is one
 %   of tokens, parse, typed, labelled, reach, predict, parallel. For
 %   labelled and reach, Result is a list Routine-Value. predict and
-%   parallel use the default options.
-pppc_stage(File, tokens, Ts) :- !,
+%   parallel take the options of pppc_compile/3 (default: none).
+pppc_stage(File, Stage, Result) :-
+    pppc_stage(File, Stage, [], Result).
+
+pppc_stage(File, tokens, _, Ts) :- !,
     read_source(File, Codes),
     pass(lexer, tokenize(Codes, Ts)).
-pppc_stage(File, parse, Tree) :- !,
+pppc_stage(File, parse, _, Tree) :- !,
     pppc_stage(File, tokens, Ts),
     pass(parser, parse_program(Ts, Tree)).
-pppc_stage(File, typed, Typed) :- !,
+pppc_stage(File, typed, _, Typed) :- !,
     front_end(File, Typed).
-pppc_stage(File, labelled, Pairs) :- !,
+pppc_stage(File, labelled, _, Pairs) :- !,
     analysis(File, Rs),
     findall(N-L, member(routine(N, L, _, _), Rs), Pairs).
-pppc_stage(File, reach, Pairs) :- !,
+pppc_stage(File, reach, _, Pairs) :- !,
     analysis(File, Rs),
     findall(N-R, member(routine(N, _, _, R), Rs), Pairs).
-pppc_stage(File, predict, Prediction) :- !,
-    pppc_predict(File, [], Prediction).
-pppc_stage(File, parallel, Program) :- !,
+pppc_stage(File, predict, Options, Prediction) :- !,
+    pppc_predict(File, Options, Prediction).
+pppc_stage(File, parallel, Options, Program) :- !,
     front_end(File, Typed),
-    prediction_setup([], Table, N),
-    pass(parallelizer, parallelize_program(Typed, Table, N, Program, _)).
-pppc_stage(_, Stage, _) :-
+    parallelized(Typed, Options, Program).
+pppc_stage(_, Stage, _, _) :-
     domain_error(pppc_stage, Stage).
 
 %!  pppc_report(+File, -Lines:list(string)) is det.

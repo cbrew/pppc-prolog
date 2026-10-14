@@ -160,6 +160,13 @@ test(speedups) :-
     predict(Text, 4, prediction(_, _, Speedups), _),
     assertion(Speedups == [1-50r51, 2-50r27, 3-500r197, 4-100r33]).
 
+test(speedups_thin_out_beyond_eight) :-
+    % every P up to 8, then powers of two, then N
+    big_loop(Text),
+    predict(Text, 20, prediction(_, _, Speedups), _),
+    pairs_keys(Speedups, Ps),
+    assertion(Ps == [1, 2, 3, 4, 5, 6, 7, 8, 16, 20]).
+
 test(overheads_extrapolate_beyond_table) :-
     % at 8: 125 * 5 + fork/join extrapolated to 800
     big_loop(Text),

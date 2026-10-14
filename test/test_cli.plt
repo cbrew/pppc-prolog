@@ -100,6 +100,19 @@ test(no_prediction_compiles_every_eligible_loop) :-
     aggregate_all(count, sub_string(Out, _, _, _, "#pragma omp parallel for"), N),
     assertion(N == 2).
 
+test(dump_predict_uses_threads) :-
+    pppc(['--dump', 'predict', '--threads', '2', 'test/programs/pi.pas'], exit(0), Out, _),
+    term_string(prediction(_, _, Speedups), Out),
+    assertion(pairs_keys(Speedups, [1, 2])).
+
+test(dump_parallel_uses_cost_table) :-
+    % small's loops are parallel only with the zero-overhead table
+    pppc(['--dump', 'parallel', 'test/programs/negative/small.pas'], exit(0), Out0, _),
+    assertion(\+ sub_string(Out0, _, _, _, "omp_for")),
+    pppc(['--dump', 'parallel', '--cost', 'test/costs/free.pl',
+          'test/programs/negative/small.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, _, _, _, "omp_for")).
+
 test(missing_cost_table_exit_1) :-
     pppc(['--cost', 'no/such/table.pl', 'test/programs/pi.pas'], Status, _, Err),
     assertion(Status == exit(1)),

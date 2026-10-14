@@ -42,7 +42,8 @@ routines whose costing is in progress (to stop at recursion).
 %
 %   Loops has loop_time(Routine, Line, SerialTime, ParallelTimeAtN) for
 %   each loop that was `parallel` in Routines0, Serial is the
-%   program's predicted serial time and Speedups is [1-S1, ..., N-SN].
+%   program's predicted serial time and Speedups is [1-S1, ..., N-SN],
+%   for every P up to 8, then for powers of two, and for N.
 decide(Rs0, Table, N, Rs, prediction(Times, Serial, Speedups)) :-
     routine_times(Table, Rs0, serial, STimes),
     maplist(decide_routine(Table, Rs0, STimes, N), Rs0, Rs, Timess),
@@ -52,8 +53,18 @@ decide(Rs0, Table, N, Rs, prediction(Times, Serial, Speedups)) :-
                       reductions(Classes, NR) ),
             Chosen),
     get_assoc(program, STimes, Serial),
-    numlist(1, N, Ps),
+    speedup_points(N, Ps),
     maplist(speedup(Table, Rs0, Chosen, Serial), Ps, Speedups).
+
+%   speedup_points(+N, -Ps): the thread counts the speedup is given for.
+speedup_points(N, Ps) :-
+    Low is min(N, 8),
+    numlist(1, Low, Ps0),
+    findall(P, ( between(4, 62, K), P is 2^K, P < N ), Ps1),
+    (   N > 8
+    ->  append([Ps0, Ps1, [N]], Ps)
+    ;   Ps = Ps0
+    ).
 
 decide_routine(Table, Rs, RTimes, N, routine(Name, LSs, Loops0, Reach),
                routine(Name, LSs, Loops, Reach), Times) :-

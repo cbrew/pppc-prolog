@@ -40,7 +40,7 @@ main(Argv) :-
 
 run(File, Options) :-
     option(dump(Stage), Options), !,
-    pppc_stage(File, Stage, Result),
+    pppc_stage(File, Stage, Options, Result),
     print_term(Result, []), nl.
 run(File, Options) :-
     option(predict(true), Options), !,

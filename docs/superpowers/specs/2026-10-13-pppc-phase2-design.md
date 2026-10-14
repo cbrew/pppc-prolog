@@ -410,3 +410,7 @@ are the points where it departs from sections 1–7.
       `test/costs/free.pl`, under which a loop with an empty range was
       still `unprofitable(0,0)`. `free.pl` remains as the CLI test's
       second table.
+    - Dumps (6.1): `pppc_stage/4` takes options, and `--dump predict`
+      and `--dump parallel` use `--threads`, `--cost` and
+      `--no-prediction` (`pppc_stage/3` keeps the defaults). Speedups
+      are given for every P up to 8, then powers of two, and N.
