@@ -70,6 +70,16 @@ test(predict) :-
     assertion(sub_string(Out, _, _, _, "parallel@4")),
     assertion(sub_string(Out, _, _, _, "\nspeedup 1:")).
 
+test(predict_columns_stay_apart) :-
+    % mm's serial times need eight digits or more
+    pppc(['--predict', 'test/programs/mm.pas'], exit(0), Out, _),
+    split_string(Out, "\n", "", Lines),
+    forall(( member(L, Lines), sub_string(L, 0, _, _, "program "),
+             sub_string(L, _, _, _, "parallel@") ),
+           ( split_string(L, " ", " ", Fields0),
+             exclude(==(""), Fields0, Fields),
+             assertion(length(Fields, 6)) )).
+
 test(threads) :-
     pppc(['--report', '--threads', '1', 'test/programs/pi.pas'], exit(0), Out, _),
     assertion(sub_string(Out, 0, _, _, "program 9 serial unprofitable(")).

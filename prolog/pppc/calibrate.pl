@@ -81,7 +81,7 @@ write_divisor(64).
 %     - free(E):  r = E on unchanged operands;
 %     - c(Text):  C statements.
 
-probe(unit(loop), [], c("")).
+probe(unit(loop), [], c("PPPC_BAR_long(k);")).   % or gcc deletes the loop
 probe(op2(Op/T/T), [a-T, b-T], chain(op2(0, [Op, id(0, [a], T), id(0, [b], T)], R))) :-
     required_entry(op2(Op/T/T)),
     pppc_semantic:op2_rule(Op, T, T, R).

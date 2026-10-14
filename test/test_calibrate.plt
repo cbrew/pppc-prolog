@@ -90,4 +90,15 @@ test(calibrate_smoke) :-
     close(S),
     load_cost_table(File, _).
 
+test(empty_loop_is_timed) :-
+    % gcc must not delete the empty loop: one iteration is at least a
+    % clock cycle, far more than 0.05 ns
+    calibration_c([], C),
+    pppc_calibrate:run_c(C, [iterations(1000000), repeat(1), max_threads(1), reps(10)], Out),
+    parse_output(Out, Samples),
+    pppc_calibrate:probes(Probes),
+    once(nth0(KL, Probes, p(unit(loop), _, _))),
+    memberchk(probe(KL, 4)-Secs, Samples),
+    assertion(Secs / 1000000 > 0.05e-9).
+
 :- end_tests(calibrate).

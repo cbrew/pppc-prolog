@@ -93,6 +93,46 @@ test(recursion_terminates) :-
             begin y := f(5) end.", S),
     assertion(S == 8).
 
+test(constant_expression_bounds) :-
+    % n is the constant 10, so 0 .. n - 1 is 10 trips * 3 = 30, plus
+    % 1 for evaluating the bound n - 1
+    serial("program t;\nconst n = 10;\nvar i, s: integer;\n\c
+            begin for i := 0 to n - 1 do s := s + i end.", S),
+    assertion(S == 31).
+
+test(negated_constant_bound) :-
+    % n downto -n is 21 trips * 3 = 63, plus 1 for the negation
+    serial("program t;\nconst n = 10;\nvar i, s: integer;\n\c
+            begin for i := n downto -n do s := s + i end.", S),
+    assertion(S == 64).
+
+%   chain(+K, -Text): procedures f0 .. fK, each fJ calling f(J-1) twice.
+chain(K, Text) :-
+    numlist(1, K, Js),
+    maplist(chain_proc, Js, Procs),
+    atomic_list_concat(Procs, Body),
+    format(string(Text),
+           "program t;\nprocedure f0; var x: integer; begin x := 1 end;\n~w\c
+            begin f~d end.", [Body, K]).
+
+chain_proc(J, Text) :-
+    J0 is J - 1,
+    format(string(Text), "procedure f~d; begin f~d; f~d end;\n", [J, J0, J0]).
+
+test(call_chain_costed_once_per_routine, [timeout(10)]) :-
+    % f0 = 1, fJ = 2 * (f(J-1) + call 1) = 3 * 2^J - 2; main adds a call.
+    % Costing each call afresh would visit f0 2^24 times.
+    chain(24, Text),
+    serial(Text, S),
+    assertion(S =:= 3 * 2^24 - 1).
+
+test(mutual_recursion_terminates) :-
+    % p: if 1 + (q's body + call 1) / 2, q: if 1 + (0 + call 1) / 2
+    % when called from p, so p = 1 + (3/2 + 1) / 2 = 9/4; main + call 1.
+    serial("program t;\nvar b: boolean;\nprocedure p; begin if b then q end;\n\c
+            procedure q; begin if b then p end;\nbegin p end.", S),
+    assertion(S == 13r4).
+
 big_loop("program t;\nvar i: integer; a: array[1..1000] of real;\n\c
           begin\nfor i := 1 to 1000 do a[i] := i * 2.0 end.").
 

@@ -45,7 +45,7 @@ run(File, Options) :-
     pppc_predict(File, Options, prediction(Loops, Serial, Speedups)),
     option(threads(N), Options, 4),
     forall(member(loop_time(R, L, S, P), Loops),
-           format("~w~t~12|~t~d~6+  serial~t~d~16+  parallel@~d~t~d~24+~n",
+           format("~w~t~12| ~t~d~6+  serial ~t~d~19+  parallel@~d ~t~d~24+~n",
                   [R, L, round(S), N, round(P)])),
     format("program serial ~d~nspeedup", [round(Serial)]),
     forall(member(K-X, Speedups), format(" ~d:~2f", [K, X])),

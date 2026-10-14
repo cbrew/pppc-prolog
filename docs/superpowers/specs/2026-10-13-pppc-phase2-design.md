@@ -379,3 +379,15 @@ are the points where it departs from sections 1–7.
 8. `--dump` accepts `predict`; `tools/doc.pl` loads every module before
    documenting it (it previously relied on `library(pppc)` loading them
    all, which `calibrate.pl` is not).
+9. **Final review fixes (2026-10-14).** Trip counts (4.1) are exact when
+   both bounds are integer constant expressions (`iconst` folded with
+   `+ - * div` and unary `-`, as in constant declarations), not only
+   literals: `0 to n - 1` with a constant `n` was costed at
+   `default_trips` (`mandel.report` line 29 changed its times, not its
+   verdict). Routines not on a call cycle are costed once per
+   prediction, callees first, instead of at every call, whose time was
+   exponential in the call depth; routines on a cycle keep the stack
+   rule of 4.1. The calibration loop probe has a barrier in its body,
+   since gcc deleted the empty loop and `cost(loop)` was always the
+   clamp value 1 (the shipped table is unchanged, see 6 above).
+   `--predict` columns keep a space between fields of any width.
