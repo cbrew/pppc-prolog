@@ -28,6 +28,8 @@ pppc_message(File, bad_threads(N)) -->
     [ '~w: the number of threads must be a positive integer, not ~p'-[File, N] ].
 pppc_message(_, cost_table_missing(Table)) -->
     [ '~w: cannot open cost table'-[Table] ].
+pppc_message(_, bad_cost_table(Table, syntax_error(L, What))) --> !,
+    [ '~w:~w: syntax error in cost table: ~w'-[Table, L, What] ].
 pppc_message(_, bad_cost_table(Table, Culprit)) -->
     [ '~w: '-[Table] ],
     cost_table(Culprit).

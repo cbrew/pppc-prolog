@@ -71,8 +71,23 @@ test(missing_entry, throws(pppc(bad_cost_table(_, missing(func(sqrt)))))) :-
     variant("cost_func(sqrt", "", F),
     load_cost_table(F, _).
 
-test(syntax_error, throws(pppc(bad_cost_table(_, syntax_error(_))))) :-
-    variant("", "cost(loop, ).", F),
+test(syntax_error_has_line, throws(pppc(bad_cost_table(_, syntax_error(2, _))))) :-
+    tmp_file_stream(text, F, S),
+    format(S, "cost(loop, 1).~ncost(loop, ).~n", []),
+    close(S),
+    load_cost_table(F, _).
+
+test(directory, throws(pppc(cost_table_missing(_)))) :-
+    tmp_file(costdir, D),
+    make_directory(D),
+    load_cost_table(D, _).
+
+test(mistyped_type, throws(pppc(bad_cost_table(_, cost_op2(+, integr, integer, 1))))) :-
+    variant("", "cost_op2(+, integr, integer, 1).", F),
+    load_cost_table(F, _).
+
+test(unknown_function, throws(pppc(bad_cost_table(_, cost_func(sine, 2))))) :-
+    variant("", "cost_func(sine, 2).", F),
     load_cost_table(F, _).
 
 test(missing_file, throws(pppc(cost_table_missing('no/such/table.pl')))) :-

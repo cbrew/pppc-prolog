@@ -47,6 +47,10 @@ test(bad_cost_table) :-
     render(pppc('a.pas', bad_cost_table('t.pl', missing(func(sqrt)))), T),
     assertion(T == "t.pl: cost table has no entry for func(sqrt)\n").
 
+test(cost_table_syntax_error) :-
+    render(pppc('a.pas', bad_cost_table('t.pl', syntax_error(2, cannot_start_term))), T),
+    assertion(T == "t.pl:2: syntax error in cost table: cannot_start_term\n").
+
 test(bad_threads) :-
     render(pppc('a.pas', bad_threads(0)), T),
     assertion(T == "a.pas: the number of threads must be a positive integer, not 0\n").

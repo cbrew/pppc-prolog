@@ -11,7 +11,6 @@
           ]).
 :- use_module(library(apply)).
 :- use_module(library(lists)).
-:- use_module(library(pairs)).
 
 /** <module> Target cost table
 
@@ -47,8 +46,9 @@ default_cost_file(File) :-
 %
 %   Throws pppc(cost_table_missing(File)) if File cannot be read and
 %   pppc(bad_cost_table(File, Culprit)) if it holds a term that is not
-%   a valid fact, a duplicate, or lacks a required entry (Culprit is
-%   then missing(Key)).
+%   a valid fact, a duplicate (duplicate(Fact)), a syntax error
+%   (syntax_error(Line, What)), or lacks a required entry
+%   (missing(Key)).
 load_cost_table(File, Table) :-
     read_facts(File, Facts),
     foldl(add_fact(File), Facts,
@@ -72,17 +72,24 @@ read_all(S, Facts) :-
         read_all(S, Ts)
     ).
 
-read_error(File, error(syntax_error(What), _)) :- !,
-    throw(pppc(bad_cost_table(File, syntax_error(What)))).
+read_error(File, error(syntax_error(What), Context)) :- !,
+    (   Context = file(_, Line, _, _)
+    ->  Culprit = syntax_error(Line, What)
+    ;   Culprit = syntax_error(What)
+    ),
+    throw(pppc(bad_cost_table(File, Culprit))).
 read_error(File, error(existence_error(source_sink, _), _)) :- !,
     throw(pppc(cost_table_missing(File))).
 read_error(File, error(permission_error(_, _, _), _)) :- !,
+    throw(pppc(cost_table_missing(File))).
+read_error(File, error(io_error(_, _), _)) :- !,        % e.g. a directory
     throw(pppc(cost_table_missing(File))).
 read_error(_, E) :-
     throw(E).
 
 add_fact(File, Fact, T0, T) :-
-    (   entry(Fact, Kind, Key, Cost)
+    (   ground(Fact),
+        entry(Fact, Kind, Key, Cost)
     ->  get_dict(Kind, T0, Es),
         (   memberchk(Key-_, Es)
         ->  throw(pppc(bad_cost_table(File, duplicate(Fact))))
@@ -91,13 +98,13 @@ add_fact(File, Fact, T0, T) :-
     ;   throw(pppc(bad_cost_table(File, Fact)))
     ).
 
-%   entry(+Fact, -Kind, -Key, -Cost) is semidet: Fact is a valid table
-%   fact. Its Key is what lookups and required_entry/1 use.
-entry(Fact, _, _, _) :-
-    \+ ground(Fact), !, fail.
-entry(cost_op2(Op, L, R, C), op2, Op/L/R, C) :- cost(C), atom(Op), atom(L), atom(R).
-entry(cost_op1(Op, T, C), op1, Op/T, C)      :- cost(C), atom(Op), atom(T).
-entry(cost_func(F, C), func, F, C)           :- cost(C), atom(F).
+%   entry(+Fact, -Kind, -Key, -Cost) is semidet: Fact (ground) is a
+%   valid table fact. Its Key is what lookups and required_entry/1 use.
+%   Operators and functions must be ones the language has, so a
+%   mistyped name or type is reported rather than ignored.
+entry(cost_op2(Op, L, R, C), op2, Op/L/R, C) :- cost(C), required_entry(op2(Op/L/R)).
+entry(cost_op1(Op, T, C), op1, Op/T, C)      :- cost(C), required_entry(op1(Op/T)).
+entry(cost_func(F, C), func, F, C)           :- cost(C), required_entry(func(F)).
 entry(cost(K, C), unit, K, C)                :- cost(C), unit_key(K).
 entry(default_trips(N), trips, trips, N)     :- integer(N), N > 0.
 entry(overhead(K, P, C), overhead, K/P, C)   :-
