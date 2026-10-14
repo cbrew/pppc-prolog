@@ -152,11 +152,15 @@ __attribute__((noinline, noipa)) static long pppc_f0(void) { return 1; }
 __attribute__((noinline, noipa)) static long pppc_f1(long a) { return a; }
 "]).
 
-write_probe(K, U, p(_, Decls, Copy)) :-
+write_probe(K, U, p(E, Decls, Copy)) :-
     copy_text(Copy, Decls, RType, Text),
     format("~nstatic double pppc_probe_~d_~d(long iters)~n{~n", [K, U]),
     forall(member(N-T, Decls),
-           ( c_scalar(T, CT, Init), format("    ~w p_~w = ~w;~n", [CT, N, Init]) )),
+           ( c_scalar(T, CT, _), operand(E, N, T, Init),
+             format("    ~w p_~w = ~w;~n", [CT, N, Init]) )),
+    % hide the initial values, so gcc cannot fold an operation on them
+    forall(member(N-T, Decls),
+           ( c_scalar(T, CT, _), format("    PPPC_BAR_~w(p_~w);~n", [CT, N]) )),
     c_scalar(RType, RCT, _),
     format("    ~w r = 0;~n    double t0, t1;~n    long k;~n", [RCT]),
     format("    t0 = omp_get_wtime();~n    for (k = 0; k < iters; k++) {~n", []),
@@ -182,11 +186,21 @@ copy_text(free(E), Decls, RType, Text) :-
     format(string(Text), "r = ~s; PPPC_BAR_~w(r);~w", [CE, RCT, BarText]).
 copy_text(c(Text), _, integer, Text).
 
-%   c_scalar(Type, CType, Initial value). The values keep every chain
-%   finite: a / b, a div b and a mod b stay put with b = 1.
+%   c_scalar(Type, CType, Initial value).
 c_scalar(integer, long, '7').
 c_scalar(real, double, '1.5').
 c_scalar(boolean, bool, true).
+
+%   operand(+Entry, +Var, +Type, -Init): the initial value of probe
+%   variable p_Var. An operator chain p_a = p_a Op p_b must keep a
+%   steady, normal, non-zero value, or it times dividing 0 (fast) or
+%   denormals (slow): with b = 1, a * b, a / b and a div b keep a and
+%   a + b, a - b move by one per step; a mod b keeps a when a < b.
+operand(op2(mod/integer/integer), b, integer, '1000003') :- !.
+operand(op2(_), b, integer, '1') :- !.
+operand(op2(_), b, real, '1.0') :- !.
+operand(_, _, T, Init) :-
+    c_scalar(T, _, Init).
 
 write_main(Probes) :-
     length(Probes, N),

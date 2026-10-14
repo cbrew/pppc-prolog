@@ -101,4 +101,39 @@ test(empty_loop_is_timed) :-
     memberchk(probe(KL, 4)-Secs, Samples),
     assertion(Secs / 1000000 > 0.05e-9).
 
+test(divisions_are_not_folded) :-
+    % a divide takes several integer additions on any current CPU;
+    % with divisors gcc can see, it emits a multiply or nothing at all
+    calibrate([max_threads(1), repeat(3), iterations(200000), reps(10)], Facts),
+    memberchk(cost_op2(div, integer, integer, D), Facts),
+    memberchk(cost_op2(/, real, real, R), Facts),
+    assertion(D >= 3),
+    assertion(R >= 3).
+
+%   An operator probe times the chain p_a = p_a Op p_b. Its value must
+%   stay non-zero, finite and normal, or the probe times dividing 0
+%   (fast) or denormal arithmetic (slow) instead of typical operands.
+test(arithmetic_chains_keep_normal_values,
+     [forall(( member(Op, [+, -, *, div, mod]), T = integer
+             ; member(Op, [+, -, *, /]), T = real ))]) :-
+    E = op2(Op/T/T),
+    pppc_calibrate:operand(E, a, T, A0),
+    pppc_calibrate:operand(E, b, T, B0),
+    atom_number(A0, A), atom_number(B0, B),
+    catch(chain(10000, Op, B, A, V), error(evaluation_error(_), _), V = overflow),
+    assertion(normal(V)).
+
+chain(0, _, _, V, V) :- !.
+chain(N, Op, B, V0, V) :-
+    c_op(Op, V0, B, V1),
+    N1 is N - 1,
+    chain(N1, Op, B, V1, V).
+
+c_op(div, A, B, V) :- !, V is A // B.
+c_op(mod, A, B, V) :- !, V is A rem B.        % C's %
+c_op(Op, A, B, V) :- F =.. [Op, A, B], V is F.
+
+normal(V) :- integer(V), V =\= 0, abs(V) < 2^63.        % a C long
+normal(V) :- float(V), abs(V) >= 2.2250738585072014e-308, abs(V) < inf.
+
 :- end_tests(calibrate).
