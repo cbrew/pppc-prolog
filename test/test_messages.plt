@@ -28,6 +28,15 @@ error_term(E) :-
                 assign_mismatch(real, boolean), not_boolean, not_integer, not_writable,
                 not_an_array, not_a_record, no_such_field(f), type_clash(-, boolean),
                 type_clash(+, real, boolean), bad_arguments(sqrt), arg_count(p, 1, 2),
-                arg_mismatch(integer, real) ]).
+                arg_mismatch(integer, real), constant_error(z, zero_divisor),
+                constant_error(z, float_overflow) ]).
+
+test(bad_number) :-
+    render(pppc('a.pas', bad_number(4, '1e400')), T),
+    assertion(T == "a.pas:4: number out of range: 1e400\n").
+
+test(constant_error) :-
+    render(pppc('a.pas', semantic(2, constant_error(z, zero_divisor))), T),
+    assertion(T == "a.pas:2: cannot compute constant `z': division by zero\n").
 
 :- end_tests(messages).

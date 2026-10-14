@@ -51,4 +51,16 @@ test(dump_reach) :-
     pppc(['--dump=reach', 'test/programs/pi.pas'], exit(0), Out, _),
     assertion(sub_string(Out, _, _, _, "reach(sum,[3,2],[3,2])")).
 
+%   Source errors found while evaluating literals and constants exit 1,
+%   not 2 (internal error).
+test(bad_constants_exit_1) :-
+    tmp_program("program bad;\nconst z = 1 / 0;\nvar x: real;\nbegin x := 1e400 end.\n", F1),
+    pppc([F1], S1, _, E1),
+    assertion(S1 == exit(1)),
+    assertion(sub_string(E1, _, _, _, ":4: number out of range: 1e400")),
+    tmp_program("program bad;\nconst z = 1 / 0;\nbegin end.\n", F2),
+    pppc([F2], S2, _, E2),
+    assertion(S2 == exit(1)),
+    assertion(sub_string(E2, _, _, _, ":2: cannot compute constant `z': division by zero")).
+
 :- end_tests(cli).

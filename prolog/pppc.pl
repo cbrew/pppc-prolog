@@ -22,7 +22,7 @@ targeting C + OpenMP. The passes are run in-process:
     lexer -> parser -> semantic -> [parallelizer] -> codegen
 
 Errors in the source are thrown as pppc(Error) where Error is
-no_source, syntax(Line, Expected, Found) or
+no_source, syntax(Line, Expected, Found), bad_number(Line, Text) or
 semantic_errors(List); a failing or
 crashing pass throws pppc(internal(Pass, Reason)).
 */

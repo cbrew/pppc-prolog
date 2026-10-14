@@ -97,8 +97,11 @@ block(block(L, [Consts, Types, Vars, Procs, Body]), Env0,
 
 consts([], Env, Env) --> [].
 consts([const_decl(L, [Name, E])|Cs], Env0, Env) -->
-    (   { const_value(E, Env0, T, V) }
+    { const_result(E, Env0, R) },
+    (   { R = ok(T, V) }
     ->  declare(L, Name, const(T, V), Env0, Env1)
+    ;   { R = eval_error(Why) }
+    ->  report(L, constant_error(Name, Why)), { Env1 = Env0 }
     ;   report(L, not_constant(Name)), { Env1 = Env0 }
     ),
     consts(Cs, Env1, Env).
@@ -124,6 +127,18 @@ declare_all([N|Ns], L, Entry, Env0, Env) -->
                  *          CONSTANTS           *
                  *******************************/
 
+%!  const_result(+Expr, +Env, -Result) is det.
+%
+%   Result is ok(Type, Value), not_constant, or eval_error(Why) when the
+%   arithmetic itself fails (Why is e.g. zero_divisor, float_overflow).
+const_result(E, Env, R) :-
+    catch(( const_value(E, Env, T, V)
+          ->  R = ok(T, V)
+          ;   R = not_constant
+          ),
+          error(evaluation_error(Why), _),
+          R = eval_error(Why)).
+
 %!  const_value(+Expr, +Env, -Type, -Value) is semidet.
 %
 %   Evaluate a constant expression at compile time.
@@ -145,7 +160,7 @@ const_value(op2(_, [Op, A, B]), Env, T, V) :-
 const_op(+, integer, integer, A, B, integer, V) :- V is A + B.
 const_op(-, integer, integer, A, B, integer, V) :- V is A - B.
 const_op(*, integer, integer, A, B, integer, V) :- V is A * B.
-const_op(div, integer, integer, A, B, integer, V) :- B =\= 0, V is A // B.
+const_op(div, integer, integer, A, B, integer, V) :- V is A // B.
 const_op(Op, TA, TB, A, B, real, V) :-
     memberchk(Op, [+, -, *, /]),
     memberchk(TA, [integer, real]), memberchk(TB, [integer, real]),
@@ -178,8 +193,8 @@ array_type([subrange(SL, [LoE, HiE])|Rs], L, Elem, Env, T) -->
     { T = array(Lo, Hi, Inner) }.
 
 bounds(L, LoE, HiE, Env, Lo, Hi) -->
-    (   { const_value(LoE, Env, integer, Lo),
-          const_value(HiE, Env, integer, Hi),
+    (   { const_result(LoE, Env, ok(integer, Lo)),
+          const_result(HiE, Env, ok(integer, Hi)),
           Lo =< Hi }
     ->  []
     ;   report(L, bad_bounds), { Lo = 1, Hi = 1 }

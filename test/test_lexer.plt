@@ -39,4 +39,8 @@ test(bad_char, throws(pppc(syntax(2, token, char('?'))))) :-
 test(unterminated_comment, throws(pppc(syntax(1, end_of_comment, eof)))) :-
     kinds("{ abc", _).
 
+%   A literal outside the range of a C double is a source error.
+test(real_out_of_range, throws(pppc(bad_number(1, '1e400')))) :-
+    kinds("x := 1e400", _).
+
 :- end_tests(lexer).

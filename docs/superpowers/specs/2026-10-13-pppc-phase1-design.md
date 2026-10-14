@@ -234,7 +234,8 @@ bottom-up (`check_expr/4` in the shape of the paper's `check_expr/3`,
 plus the symbol table). Operator typing is table-driven (`op2_type/4`
 facts, as in the paper). Integer→real widening is explicit in the
 typed tree. Errors (type clash, undeclared identifier, bad field,
-wrong argument count, non-numeric zero assignment, …) are **collected**;
+wrong argument count, non-numeric zero assignment, constant arithmetic
+that cannot be evaluated such as `1 / 0`, …) are **collected**;
 if any exist, all are printed and compilation fails.
 
 ### 6.4 Parallelizer (optional; skipped by `--serial`)
@@ -347,6 +348,7 @@ Library API: `pppc_compile(+SourceFile, +Options, -CText)`,
 |---|---|---|
 | Missing source | `throw(pppc(no_source))` | exit 1 |
 | Syntax | `throw(pppc(syntax(L, Exp, Found)))` | stop at first, exit 1 |
+| Real literal out of range | `throw(pppc(bad_number(L, Text)))` | stop, exit 1 |
 | Semantic | collected list of `pppc(semantic(L, Msg))`, thrown as `pppc(semantic_errors(List))` | report all, exit 1 |
 | Internal | unexpected failure/exception in a pass | `pppc(internal(Pass, Reason))`, exit 2 |
 

@@ -18,6 +18,8 @@ pppc_message(File, syntax(L, Expected, Found)) -->
 pppc_message(File, semantic(L, Msg)) -->
     [ '~w:~w: '-[File, L] ],
     semantic(Msg).
+pppc_message(File, bad_number(L, Text)) -->
+    [ '~w:~w: number out of range: ~w'-[File, L, Text] ].
 pppc_message(File, no_source) -->
     [ '~w: cannot open source file'-[File] ].
 pppc_message(File, internal(Pass, Reason)) -->
@@ -57,3 +59,8 @@ semantic(type_clash(Op, A, B))  --> [ 'type clash at operator ~w: ~p and ~p'-[Op
 semantic(bad_arguments(N))      --> [ 'wrong argument types for `~w'''-[N] ].
 semantic(arg_count(N, E, G))    --> [ '`~w'' takes ~d argument(s), ~d given'-[N, E, G] ].
 semantic(arg_mismatch(P, A))    --> [ 'argument of type ~p given for parameter of type ~p'-[A, P] ].
+semantic(constant_error(N, W))  --> [ 'cannot compute constant `~w'': '-[N] ], evaluation(W).
+
+evaluation(zero_divisor)   --> !, [ 'division by zero' ].
+evaluation(float_overflow) --> !, [ 'overflow' ].
+evaluation(W)              --> [ '~w'-[W] ].

@@ -23,7 +23,8 @@ The line number is threaded through the grammar as an accumulator pair.
 %
 %   Tokenize Codes. Throws pppc(syntax(Line, Expected, Found)) on a
 %   character that cannot start a token or an unterminated comment or
-%   string.
+%   string, and pppc(bad_number(Line, Text)) on a real literal outside
+%   the range of a double.
 
 tokenize(Codes, Tokens) :-
     phrase(tokens(1, Tokens), Codes).
@@ -64,20 +65,29 @@ token(_, T) -->
       ;   T = id(A)
       )
     }.
-token(_, T) -->
+token(L, T) -->
     digit(D0), digits(Ds),
     (   fraction(Fs)
     ->  optional_exponent(Es),
-        { append([[D0|Ds], `.`, Fs, Es], Cs) },
-        { number_codes(R, Cs), T = real(R) }
+        { append([[D0|Ds], `.`, Fs, Es], Cs),
+          real_value(L, Cs, Cs, R), T = real(R) }
     ;   exponent(Es)
-    ->  { append([[D0|Ds], `.0`, Es], Cs), number_codes(R, Cs), T = real(R) }
+    ->  { append([[D0|Ds], Es], Text),
+          append([[D0|Ds], `.0`, Es], Cs),
+          real_value(L, Text, Cs, R), T = real(R) }
     ;   { number_codes(N, [D0|Ds]), T = int(N) }
     ).
 token(L, str(Cs)) -->
     "'", !, string_body(L, Cs).
 token(_, punct(P)) -->
     punct(P).
+
+%   real_value(+Line, +Text, +Codes, -R): Codes is the literal in Prolog
+%   syntax, Text as written (for the message).
+real_value(L, Text, Cs, R) :-
+    catch(number_codes(R, Cs),
+          error(syntax_error(_), _),
+          ( atom_codes(A, Text), throw(pppc(bad_number(L, A))) )).
 
 word_codes([C|Cs]) --> [C], { code_type(C, csym) }, !, word_codes(Cs).
 word_codes([]) --> [].

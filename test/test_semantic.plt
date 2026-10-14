@@ -120,4 +120,11 @@ test(var_param_for_variable) :-
            begin for k := 1 to 10 do s := s + k end;\nbegin end.", _, Errs),
     assertion(Errs == [pppc(semantic(4, bad_for_variable))]).
 
+%   Constant arithmetic that cannot be evaluated is reported, not a crash.
+test(constant_division_by_zero) :-
+    check("program t;\nconst a = 1 / 0; b = 7 div 0; c = 1.0e300 * 1.0e300;\nbegin end.", _, Errs),
+    assertion(Errs == [ pppc(semantic(2, constant_error(a, zero_divisor))),
+                        pppc(semantic(2, constant_error(b, zero_divisor))),
+                        pppc(semantic(2, constant_error(c, float_overflow))) ]).
+
 :- end_tests(semantic).
