@@ -329,6 +329,53 @@ Because `unprofitable(S, Par)` carries times, regenerating the default
 table (`make calibrate`) may change `.report` files; they are re-checked
 and updated in the same commit as the new table.
 
-## 8. Revisions
+## 8. Revisions after prototyping (2026-10-13)
 
-(None yet.)
+The plan was written from a prototype that passed every test; these
+are the points where it departs from sections 1–7.
+
+1. **Calibration method (5).** Subtracting an empty-loop baseline from
+   independent operations gave unstable tables (an out-of-order CPU
+   overlaps one addition with the loop's own work, so the unit of
+   measurement was a small, noisy difference). Probes now repeat their
+   operation U = 4 and U = 12 times per iteration, and an operation's
+   time is the difference divided by 8, which cancels the loop
+   overhead. Operators are timed as dependent chains (`p_a = p_a + p_b`),
+   so one integer addition is one cycle; library functions are timed
+   unchained (a chain of `exp` or `ln` reaches infinity or NaN).
+   Default iterations are 10^6; the output probe runs 1/64 of them.
+   Two runs on the development machine agree on every entry but
+   `write_item` (147 vs 149).
+2. **Probes reuse codegen.** `pppc_codegen` exports `runtime_text/1`,
+   and expression probes are typed tree nodes printed by `c_expr/2`, so
+   calibration times the C the compiler emits.
+3. **`parallelize_program/5`** (`+Typed, +Table, +N, -Parallel,
+   -Routines`) replaces the planned `/4` with options: options are read
+   and the table loaded once, in `pppc.pl`. `parallelize_program/3`
+   remains and transforms every eligible loop without prediction (the
+   Phase 1 behaviour, used by the transformation tests).
+4. **End-to-end coverage (7.2).** With the shipped table, short loops in
+   the Phase 1 regression programs (`names.pas`, `results.pas`,
+   `features.pas`) are now serial, so their parallel code would no
+   longer be compiled or run. `make check` therefore builds every
+   program three ways: serial, parallel with the shipped table, and
+   parallel with `test/costs/free.pl`, a table whose parallel regions
+   cost nothing, so every eligible loop of two or more iterations is
+   parallel as in Phase 1.
+5. **Required-entry check (3.2).** The semantic pass's typing rules
+   test membership (`memberchk/2`) and cannot enumerate, so the test
+   runs every operator of the language over every pair of scalar types
+   in both directions.
+6. **The default table is recorded, not regenerated, by the plan.**
+   `prolog/pppc/cost/default.pl` is the prototype's `make calibrate`
+   output on the development machine (AMD Ryzen 5 5600G, gcc 16.2), so
+   the `.report` files that carry `unprofitable(S, P)` times are exact.
+7. **Verdict changes with the shipped table at N = 4.** Eligible loops
+   that become `serial unprofitable(…)`: the one-pass vector loops of
+   `cg` (lines 21, 34, 51), the final sum of `linear` (34), `mandel`
+   (29) and `mm` (23), and the short loops of `features`, `names` and
+   `results`. The heavy loops (Jacobi's iteration, matrix product,
+   Mandelbrot rows, n-body forces, pi, montepi) stay parallel.
+8. `--dump` accepts `predict`; `tools/doc.pl` loads every module before
+   documenting it (it previously relied on `library(pppc)` loading them
+   all, which `calibrate.pl` is not).

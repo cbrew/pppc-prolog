@@ -64,6 +64,31 @@ test(bad_constants_exit_1) :-
     assertion(S2 == exit(1)),
     assertion(sub_string(E2, _, _, _, ":2: cannot compute constant `z': division by zero")).
 
+test(predict) :-
+    pppc(['--predict', 'test/programs/pi.pas'], Status, Out, _),
+    assertion(Status == exit(0)),
+    assertion(sub_string(Out, _, _, _, "parallel@4")),
+    assertion(sub_string(Out, _, _, _, "\nspeedup 1:")).
+
+test(threads) :-
+    pppc(['--report', '--threads', '1', 'test/programs/pi.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, 0, _, _, "program 9 serial unprofitable(")).
+
+test(cost_table) :-
+    pppc(['--report', '--cost', 'test/costs/free.pl', 'test/programs/negative/small.pas'],
+         exit(0), Out, _),
+    assertion(sub_string(Out, 0, _, _, "program 7 parallel")).
+
+test(missing_cost_table_exit_1) :-
+    pppc(['--cost', 'no/such/table.pl', 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "no/such/table.pl: cannot open cost table")).
+
+test(bad_threads_exit_1) :-
+    pppc(['--threads', '0', 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "must be a positive integer, not 0")).
+
 test(calibrate_app_writes_table) :-
     tmp_file_stream(text, File, S), close(S),
     process_create(path(swipl), [pppc_calibrate, '--max-threads', '1', '--repeat', '1', '-o', File],

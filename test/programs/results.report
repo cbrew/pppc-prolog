@@ -1,2 +1,2 @@
-program 24 parallel a:distributed i:index
+program 24 serial unprofitable(183,3879)
 squares 18 parallel i:index squares:distributed

@@ -11,10 +11,14 @@ Run from the project root inside the devenv shell: make check
 
 For every program in test/programs and test/programs/negative:
 
-  1. the --report output equals the checked-in .report file;
-  2. the serial and parallel C build with gcc -O2 -fopenmp;
+  1. the --report output (with the shipped cost table, 4 threads)
+     equals the checked-in .report file;
+  2. three builds compile with gcc -O2 -fopenmp: serial; parallel with
+     the shipped cost table; and parallel with test/costs/free.pl, a
+     table in which parallel regions cost nothing, so every eligible
+     loop is parallel whatever the real table decides;
   3. if there is a .out file, the serial binary prints exactly that;
-  4. the parallel binary run with OMP_NUM_THREADS=1 and 4 prints the
+  4. both parallel binaries run with OMP_NUM_THREADS=1 and 4 print the
      same as the serial binary (numbers within a relative tolerance
      of 1e-9), except montepi, whose result must be within 0.01 of pi.
 */
@@ -39,14 +43,15 @@ test(report, [forall(program(Pas))]) :-
 
 test(run, [forall(program(Pas))]) :-
     build(Pas, serial, Serial),
-    build(Pas, parallel, Parallel),
     run(Serial, 1, Reference),
     expected_output(Pas, Reference),
-    run(Parallel, 1, Out1),
-    run(Parallel, 4, Out4),
     file_base_name(Pas, File), file_name_extension(Name, _, File),
-    check(Name, Reference, Out1),
-    check(Name, Reference, Out4).
+    forall(member(Mode, [parallel, free]),
+           ( build(Pas, Mode, Parallel),
+             run(Parallel, 1, Out1),
+             run(Parallel, 4, Out4),
+             check(Name, Reference, Out1),
+             check(Name, Reference, Out4) )).
 
 %   expected_output(+Pas, +Reference): if Pas has a checked-in .out
 %   file, the serial build must print exactly that. This catches bugs
@@ -65,7 +70,7 @@ build(Pas, Mode, Exe) :-
     make_directory_path('build/e2e'),
     format(atom(C), 'build/e2e/~w_~w.c', [Name, Mode]),
     format(atom(Exe), 'build/e2e/~w_~w', [Name, Mode]),
-    ( Mode == serial -> Opts = [serial(true)] ; Opts = [] ),
+    mode_options(Mode, Opts),
     pppc_compile(Pas, Opts, Code),
     setup_call_cleanup(open(C, write, S), write(S, Code), close(S)),
     process_create(path(gcc), ['-O2', '-Wall', '-Werror', '-fopenmp', C, '-o', Exe, '-lm'],
@@ -73,6 +78,10 @@ build(Pas, Mode, Exe) :-
     read_string(Err, _, Diag), close(Err),
     process_wait(Pid, Status),
     assertion(Status-Diag == exit(0)-"").
+
+mode_options(serial, [serial(true)]).
+mode_options(parallel, []).
+mode_options(free, [cost('test/costs/free.pl')]).
 
 run(Exe, Threads, Output) :-
     process_create(Exe, [], [ stdout(pipe(Out)), process(Pid),

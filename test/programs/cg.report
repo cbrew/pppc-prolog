@@ -1,9 +1,9 @@
 program 10 parallel a:distributed b:distributed i:index j:local p:distributed r:distributed x:distributed
 program 12 nested 10
-program 21 parallel i:index r:read_only rr:associative(+)
+program 21 serial unprofitable(4500,4957)
 program 26 parallel a:read_only i:index j:local p:read_only q:distributed s:local
 program 29 nested 26
-program 34 parallel i:index p:read_only pq:associative(+) q:read_only
+program 34 serial unprofitable(4500,4957)
 program 38 parallel alpha:read_only i:index p:read_only q:read_only r:distributed rr_new:associative(+) x:distributed
 program 46 parallel beta:read_only i:index p:distributed r:read_only
-program 51 parallel i:index s:associative(+) x:read_only
+program 51 serial unprofitable(2500,4453)

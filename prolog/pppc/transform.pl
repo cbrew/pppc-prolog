@@ -1,6 +1,7 @@
 :- module(pppc_transform,
           [ analyse_program/2,          % +Typed, -Routines
-            parallelize_program/3       % +Typed, -Parallel, -Routines
+            parallelize_program/3,      % +Typed, -Parallel, -Routines
+            parallelize_program/5       % +Typed, +Table, +N, -Parallel, -Routines
           ]).
 :- use_module(library(apply)).
 :- use_module(library(lists)).
@@ -9,13 +10,14 @@
 :- use_module(library(pppc/label)).
 :- use_module(library(pppc/dataflow)).
 :- use_module(library(pppc/parloop)).
+:- use_module(library(pppc/predict)).
 
 /** <module> Parallelizer driver and loop transformation
 
 Runs the parallelizer phases of the paper (section 4.4.6) over each
 routine of a typed program: statement labelling, reaching definitions,
-parallel loop detection, code transformation and cleanup. Run time
-prediction is Phase 2; every loop found parallel is transformed.
+parallel loop detection, run time prediction (pppc_predict), code
+transformation and cleanup.
 
 A parallel loop becomes
 
@@ -36,8 +38,24 @@ analyse_program(Typed, Routines) :-
     maplist(analyse_routine, Rs, Routines).
 
 %!  parallelize_program(+Typed, -Parallel, -Routines) is det.
+%
+%   Transform every loop that obeys the parallelization rules, without
+%   run time prediction.
 parallelize_program(Typed, Parallel, Routines) :-
     analyse_program(Typed, Routines),
+    transform_program(Typed, Routines, Parallel).
+
+%!  parallelize_program(+Typed, +Table, +N, -Parallel, -Routines) is det.
+%
+%   Transform the loops that obey the parallelization rules and are
+%   predicted, with cost table Table, to run faster in parallel on N
+%   threads. Routines has the final verdicts.
+parallelize_program(Typed, Table, N, Parallel, Routines) :-
+    analyse_program(Typed, Routines0),
+    decide(Routines0, Table, N, Routines, _),
+    transform_program(Typed, Routines, Parallel).
+
+transform_program(Typed, Routines, Parallel) :-
     Typed = program(L, [Name, block(BL, [Decls, Procs, Body], void)], void),
     routine_body(program, Routines, Body, NewBody),
     maplist(transform_proc(Routines), Procs, NewProcs),

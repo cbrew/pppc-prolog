@@ -1,7 +1,7 @@
-program 36 parallel i:index v:distributed
-program 43 parallel i:index pts:distributed
-program 53 parallel exp:associative(+) i:index
-program 57 parallel i:index k:associative(+)
-program 61 parallel i:index k:associative(+)
+program 36 serial unprofitable(80,3846)
+program 43 serial unprofitable(160,3870)
+program 53 serial unprofitable(80,3847)
+program 57 serial unprofitable(0,3823)
+program 61 serial unprofitable(75,3844)
 scale 16 serial vparam_change
-total 24 parallel a:read_only i:index s:associative(+)
+total 24 serial unprofitable(100,3853)
