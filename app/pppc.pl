@@ -14,6 +14,7 @@ Exit status: 0 success, 1 error in the source program, 2 internal error.
 opt_type(serial, serial, boolean).
 opt_type(report, report, boolean).
 opt_type(predict, predict, boolean).
+opt_type(prediction, prediction, boolean).
 opt_type(threads, threads, integer).
 opt_type(cost, cost, file).
 opt_type(dump,   dump,   oneof([tokens, parse, typed, labelled, reach, predict, parallel])).
@@ -22,6 +23,7 @@ opt_type(o,      output, file(write)).
 opt_help(serial, "Do not parallelize: emit plain serial C").
 opt_help(report, "Print the parallelization decision for every for loop").
 opt_help(predict, "Print predicted loop times and speedups").
+opt_help(prediction, "Decide parallel loops by predicted time (default true; --no-prediction parallelizes every eligible loop)").
 opt_help(threads, "Number of threads to predict for (default 4)").
 opt_help(cost, "Cost table file (default: the shipped table)").
 opt_help(dump,   "Print the intermediate representation after a stage and stop").

@@ -89,6 +89,17 @@ test(cost_table) :-
          exit(0), Out, _),
     assertion(sub_string(Out, 0, _, _, "program 7 parallel")).
 
+test(no_prediction_report) :-
+    % the empty range 5 to 1 is not worth a parallel region, but is
+    % eligible
+    pppc(['--report', '--no-prediction', 'test/programs/features.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, _, _, _, "\nprogram 57 parallel")).
+
+test(no_prediction_compiles_every_eligible_loop) :-
+    pppc(['--no-prediction', 'test/programs/negative/small.pas'], exit(0), Out, _),
+    aggregate_all(count, sub_string(Out, _, _, _, "#pragma omp parallel for"), N),
+    assertion(N == 2).
+
 test(missing_cost_table_exit_1) :-
     pppc(['--cost', 'no/such/table.pl', 'test/programs/pi.pas'], Status, _, Err),
     assertion(Status == exit(1)),

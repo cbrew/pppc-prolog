@@ -14,9 +14,9 @@ For every program in test/programs and test/programs/negative:
   1. the --report output (with the shipped cost table, 4 threads)
      equals the checked-in .report file;
   2. three builds compile with gcc -O2 -fopenmp: serial; parallel with
-     the shipped cost table; and parallel with test/costs/free.pl, a
-     table in which parallel regions cost nothing, so every eligible
-     loop is parallel whatever the real table decides;
+     the shipped cost table; and parallel without run time prediction
+     (prediction(false)), so every eligible loop is parallel whatever
+     the cost table decides;
   3. if there is a .out file, the serial binary prints exactly that;
   4. both parallel binaries run with OMP_NUM_THREADS=1 and 4 print the
      same as the serial binary (numbers within a relative tolerance
@@ -46,7 +46,7 @@ test(run, [forall(program(Pas))]) :-
     run(Serial, 1, Reference),
     expected_output(Pas, Reference),
     file_base_name(Pas, File), file_name_extension(Name, _, File),
-    forall(member(Mode, [parallel, free]),
+    forall(member(Mode, [parallel, all]),
            ( build(Pas, Mode, Parallel),
              run(Parallel, 1, Out1),
              run(Parallel, 4, Out4),
@@ -81,7 +81,7 @@ build(Pas, Mode, Exe) :-
 
 mode_options(serial, [serial(true)]).
 mode_options(parallel, []).
-mode_options(free, [cost('test/costs/free.pl')]).
+mode_options(all, [prediction(false)]).
 
 run(Exe, Threads, Output) :-
     process_create(Exe, [], [ stdout(pipe(Out)), process(Pid),

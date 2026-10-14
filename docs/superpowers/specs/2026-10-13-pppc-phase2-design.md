@@ -404,3 +404,9 @@ are the points where it departs from sections 1–7.
     - Overheads (3.3): beyond the largest measured P, the
       least-squares line through all measured points, never below the
       value at the largest P, instead of the line through the last two.
+    - End-to-end coverage (revision 4): the third build uses the new
+      option `prediction(false)` (CLI `--no-prediction`), which
+      parallelizes every eligible loop as Phase 1 did, instead of
+      `test/costs/free.pl`, under which a loop with an empty range was
+      still `unprofitable(0,0)`. `free.pl` remains as the CLI test's
+      second table.

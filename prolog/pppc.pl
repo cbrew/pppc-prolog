@@ -30,7 +30,10 @@ threads, using a target cost table. Options accepted by pppc_compile/3,
 pppc_report/3 and pppc_predict/3:
 
   - threads(N)  the number of threads to predict for (default 4);
-  - cost(File)  the cost table (default: the shipped table).
+  - cost(File)  the cost table (default: the shipped table);
+  - prediction(Bool)  if `false`, parallelize every eligible loop
+    without run time prediction, as Phase 1 did (pppc_compile/3 and
+    pppc_report/3; threads and cost are then not used).
 
 Errors in the source are thrown as pppc(Error) where Error is
 no_source, syntax(Line, Expected, Found), bad_number(Line, Text) or
@@ -49,6 +52,8 @@ pppc_compile(File, Options, CText) :-
     front_end(File, Typed),
     (   option(serial(true), Options)
     ->  Program = Typed
+    ;   option(prediction(false), Options)
+    ->  pass(parallelizer, parallelize_program(Typed, Program, _))
     ;   prediction_setup(Options, Table, N),
         pass(parallelizer, parallelize_program(Typed, Table, N, Program, _))
     ),
@@ -97,7 +102,11 @@ pppc_report(File, Lines) :-
     pppc_report(File, [], Lines).
 
 pppc_report(File, Options, Lines) :-
-    decided(File, Options, Rs, _),
+    (   option(prediction(false), Options)
+    ->  front_end(File, Typed),
+        pass(parallelizer, analyse_program(Typed, Rs))
+    ;   decided(File, Options, Rs, _)
+    ),
     findall(Line, ( member(routine(N, _, Loops, _), Rs),
                     member(Loop, Loops),
                     report_line(N, Loop, Line) ),
