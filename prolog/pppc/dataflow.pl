@@ -1,5 +1,6 @@
 :- module(pppc_dataflow,
           [ with_dataflow/4,            % +Labelled, +AllVars, +ExitVars, :Goal
+            with_dataflow/5,            % +Labelled, +AllVars, +ExitVars, +CallVars, :Goal
             reach/3,                    % ?Var, ?DefLabel, ?UseLabel
             carried/3,                  % +Loop, ?Var, ?UseLabel
             defines/3,                  % ?Label, ?Var, ?Kind
@@ -23,7 +24,12 @@ The graph has one node per labelled statement plus two extra nodes:
   - [0], the routine exit, which uses the variables whose values
     escape the routine (globals, var parameters, function result).
 
-Facts (local to this module, valid only inside with_dataflow/4):
+A call of a user routine may read and change only what the callee can
+reach: the globals not shadowed in this routine, this routine's own var
+parameters (which may be globals in disguise), and the variables passed
+to it as var arguments. It cannot touch this routine's locals.
+
+Facts (local to this module, valid only inside with_dataflow/5):
 
   - def(Label, Var, Kind)  Kind is `kill` for an assignment to the
     whole variable, `nokill` for an element/field assignment or a
@@ -32,20 +38,30 @@ Facts (local to this module, valid only inside with_dataflow/4):
   - edge(From, To).
 */
 
-:- meta_predicate with_dataflow(+, +, +, 0).
+:- meta_predicate
+    with_dataflow(+, +, +, 0),
+    with_dataflow(+, +, +, +, 0).
 
 :- dynamic def/3, use/2, edge/2.
 
 :- table reach_in/3, clear/3.
 
 %!  with_dataflow(+Labelled:list, +AllVars:list, +ExitVars:list, :Goal)
+%!  with_dataflow(+Labelled:list, +AllVars:list, +ExitVars:list,
+%!                +CallVars:list, :Goal)
 %
 %   Run Goal with the dataflow facts for the routine body Labelled
 %   loaded. AllVars are all variables visible in the routine; ExitVars
-%   those live at its exit. Goal is run as once/1.
+%   those live at its exit; CallVars those a call of another routine
+%   may read or change (besides its var arguments). with_dataflow/4
+%   takes CallVars = AllVars, which is right for the main program.
+%   Goal is run as once/1.
 with_dataflow(LSs, AllVars, ExitVars, Goal) :-
+    with_dataflow(LSs, AllVars, ExitVars, AllVars, Goal).
+
+with_dataflow(LSs, AllVars, ExitVars, CallVars, Goal) :-
     setup_call_cleanup(
-        load_graph(LSs, AllVars, ExitVars),
+        load_graph(LSs, AllVars, ExitVars, CallVars),
         once(Goal),
         clear_graph).
 
@@ -55,20 +71,20 @@ clear_graph :-
     retractall(edge(_, _)),
     abolish_module_tables(pppc_dataflow).
 
-load_graph(LSs, AllVars, ExitVars) :-
+load_graph(LSs, AllVars, ExitVars, CallVars) :-
     clear_graph,
     forall(member(V, AllVars), assertz(def([-1], V, kill))),
     forall(member(V, ExitVars), assertz(use([0], V))),
-    flow_seq(LSs, AllVars, [[-1]], Exits),
+    flow_seq(LSs, CallVars, [[-1]], Exits),
     connect(Exits, [0]).
 
                  /*******************************
                  *        CONTROL FLOW          *
                  *******************************/
 
-%   flow_seq(+Stmts, +AllVars, +Preds, -Exits): Preds are the nodes
+%   flow_seq(+Stmts, +CallVars, +Preds, -Exits): Preds are the nodes
 %   that flow into the first statement; Exits those that flow out of
-%   the last.
+%   the last. CallVars is passed down for the effects of calls.
 
 flow_seq([], _, Preds, Preds).
 flow_seq([S|Ss], Vs, Preds, Exits) :-
@@ -105,40 +121,47 @@ connect(Preds, N) :-
                  *      DEFINITIONS & USES      *
                  *******************************/
 
-%   stmt_effects(+Stmt, +Label, +AllVars) asserts the def/use facts of
-%   the statement node itself (not of nested statements).
+%   stmt_effects(+Stmt, +Label, +CallVars) asserts the def/use facts of
+%   the statement node itself (not of nested statements): its own reads
+%   and writes, plus those of any user call it makes.
 
 stmt_effects(S, P, Vs) :-
+    own_effects(S, P),
     shallow_part(S, Part),
-    has_user_call(Part), !,
-    call_effects(P, Vs).
-stmt_effects(assign(_, [T, E], _), P, _) :- !,
+    (   has_user_call(Part)
+    ->  call_effects(P, Part, Vs)
+    ;   true
+    ).
+
+own_effects(assign(_, [T, E], _), P) :- !,
     target_base(T, V, Whole),
     target_uses(T, U1), expr_vars(E, U2), ord_union(U1, U2, Us),
     add_uses(P, Us),
     add_def(P, V, Whole).
-stmt_effects(zero_assign(_, [T], _), P, _) :- !,
+own_effects(zero_assign(_, [T], _), P) :- !,
     target_base(T, V, Whole),
     target_uses(T, Us),
     add_uses(P, Us),
     add_def(P, V, Whole).
-stmt_effects(S, P, _) :-
+own_effects(S, P) :-
     ( S = for(_, [Var, F, T, _, _], _) ; S = omp_for(_, [Var, F, T, _, _, _], _) ), !,
     expr_vars(F-T, Us),
     add_uses(P, Us),
     var_node(Var, V),
     add_def(P, V, true).
-stmt_effects(S, P, Vs) :-
-    node_effects(P, S, Vs).
+own_effects(S, P) :-
+    shallow_part(S, Part),
+    expr_vars(Part, Us),
+    add_uses(P, Us).
 
-%   node_effects(+Label, +Term, +AllVars): Term (a condition or a whole
-%   simple statement) is only read.
-node_effects(P, Term, Vs) :-
-    (   has_user_call(Term)
-    ->  call_effects(P, Vs)
-    ;   shallow_part(Term, Part),
-        expr_vars(Part, Us),
-        add_uses(P, Us)
+%   node_effects(+Label, +Cond, +CallVars): the condition of a repeat,
+%   evaluated at the repeat's own node.
+node_effects(P, C, Vs) :-
+    expr_vars(C, Us),
+    add_uses(P, Us),
+    (   has_user_call(C)
+    ->  call_effects(P, C, Vs)
+    ;   true
     ).
 
 %   shallow_part(+Stmt, -Part): the parts of Stmt evaluated at its own
@@ -150,10 +173,15 @@ shallow_part(if(_, [C, _, _], _), C) :- !.
 shallow_part(compound(_, _, _), none) :- !.
 shallow_part(S, S).
 
-%   A user call may read and modify any visible variable.
-call_effects(P, Vs) :-
-    add_uses(P, Vs),
-    forall(member(V, Vs), add_def(P, V, false)).
+%   call_effects(+Label, +Part, +CallVars): a user call in Part may
+%   read and modify CallVars and the variables passed as var arguments.
+call_effects(P, Part, Vs) :-
+    findall(V, ( sub_term(A, Part), compound(A), A = addr(_, [X], _),
+                 target_base(X, V, _) ), VarArgs0),
+    sort(VarArgs0, VarArgs),
+    ord_union(Vs, VarArgs, Reach),
+    add_uses(P, Reach),
+    forall(member(V, Reach), add_def(P, V, false)).
 
 add_uses(P, Us) :-
     forall(member(U, Us), assertz(use(P, U))).

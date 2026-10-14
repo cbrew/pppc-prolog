@@ -57,21 +57,27 @@ routine_body(Name, Routines, compound(L, _, _), NewBody) :-
                  *******************************/
 
 %   program_routines(+Typed, -Rs): Rs is a list of
-%   r(Name, Body, AllVars, ExitVars).
+%   r(Name, Body, AllVars, ExitVars, CallVars). CallVars are the
+%   variables another routine called from this one can reach (and so
+%   also those a var parameter of this one might alias): the globals not
+%   shadowed here, plus this routine's var parameters.
 
 program_routines(program(_, [_, block(_, [Decls, Procs, Body], _)], _), [Main|Rs]) :-
     decl_names(Decls, Globals),
-    Main = r(program, Body, Globals, []),
+    Main = r(program, Body, Globals, [], Globals),
     maplist(proc_routine(Globals), Procs, Rs).
 
 proc_routine(Globals, proc(_, [Name, Params, R, block(_, [Decls, _, Body], _)], _),
-             r(Name, Body, All, Exit)) :-
+             r(Name, Body, All, Exit, Call)) :-
     findall(N, (member(param(_, [_, Ns, _], _), Params), member(N, Ns)), PNs),
     findall(N, (member(param(_, [var, Ns, _], _), Params), member(N, Ns)), VNs),
     decl_names(Decls, Locals),
     ( R == none -> Res = [] ; Res = [Name] ),
-    foldl(union_list, [Globals, PNs, Locals, Res], [], All),
-    foldl(union_list, [Globals, VNs, Res], [], Exit).
+    foldl(union_list, [PNs, Locals, Res], [], Own),
+    ord_subtract(Globals, Own, Visible),
+    foldl(union_list, [Visible, Own], [], All),
+    foldl(union_list, [Visible, VNs, Res], [], Exit),
+    union_list(VNs, Visible, Call).
 
 union_list(L, S0, S) :- sort(L, SL), ord_union(S0, SL, S).
 
@@ -79,10 +85,10 @@ decl_names(Decls, Names) :-
     findall(N, (member(var_decl(_, [Ns, _], _), Decls), member(N, Ns)), Names0),
     sort(Names0, Names).
 
-analyse_routine(r(Name, Body, All, Exit), routine(Name, LSs, Loops, Reach)) :-
+analyse_routine(r(Name, Body, All, Exit, Call), routine(Name, LSs, Loops, Reach)) :-
     label_body(Body, LSs),
-    with_dataflow(LSs, All, Exit,
-                  ( classify_loops(LSs, Loops),
+    with_dataflow(LSs, All, Exit, Call,
+                  ( classify_loops(LSs, Call, Loops),
                     findall(reach(V, S, U), reach(V, S, U), Reach0),
                     sort(Reach0, Reach) )).
 

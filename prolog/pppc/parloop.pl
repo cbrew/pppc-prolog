@@ -1,5 +1,6 @@
 :- module(pppc_parloop,
           [ classify_loops/2,           % +Labelled, -Loops
+            classify_loops/3,           % +Labelled, +Aliasable, -Loops
             stmt_access/2,              % +Stmt, -Access
             is_local/2                  % +Var, +Loop
           ]).
@@ -13,7 +14,7 @@
 /** <module> Parallel loop detection
 
 Implements the parallelization rules of the paper (section 4.3.3).
-Must be called inside pppc_dataflow:with_dataflow/4 for the routine.
+Must be called inside pppc_dataflow:with_dataflow/5 for the routine.
 
 A bottom-up traversal computes for each statement an access summary
 
@@ -25,6 +26,12 @@ A bottom-up traversal computes for each statement an access summary
   - Arrays: list of Array-Access, Access is sub(FirstSubscript) or
     `whole`;
   - Effects: ordset of call, io, vparam_change.
+
+Aliasing: a var parameter may be another name for a global (or part of
+one) or for another var parameter. A loop that reads a var parameter
+while changing any variable it might alias is serial with reason
+vparam_alias; one that assigns through a var parameter is serial with
+reason vparam_change.
 
 Summaries of compound statements are merged as described in section
 4.4.6: an associative variable stays associative only if no other
@@ -42,24 +49,31 @@ reported as nested.
 %   for loop, in source order. Verdict is `parallel`, serial(Reasons)
 %   or nested(OuterLine). Classes is a list of Var-Class (empty for
 %   nested loops).
+%
+%   Aliasable is the ordset of variables a var parameter of this routine
+%   might alias (the unshadowed globals and the var parameters);
+%   classify_loops/2 takes it as [], which is right for the main program.
 classify_loops(LSs, Loops) :-
-    phrase(loops_seq(LSs), Loops).
+    classify_loops(LSs, [], Loops).
 
-loops_seq([]) --> [].
-loops_seq([S|Ss]) --> loops(S), loops_seq(Ss).
+classify_loops(LSs, Aliasable, Loops) :-
+    phrase(loops_seq(LSs, Aliasable), Loops).
 
-loops(lbl(P, for(L, [Var, _, _, _, Body], _))) --> !,
-    { classify(P, Var, Body, Verdict, Classes) },
+loops_seq([], _) --> [].
+loops_seq([S|Ss], A) --> loops(S, A), loops_seq(Ss, A).
+
+loops(lbl(P, for(L, [Var, _, _, _, Body], _)), A) --> !,
+    { classify(P, Var, Body, A, Verdict, Classes) },
     [loop(P, L, Verdict, Classes)],
     (   { Verdict == parallel }
     ->  nested(Body, L)
-    ;   loops_seq(Body)
+    ;   loops_seq(Body, A)
     ).
-loops(lbl(_, while(_, [_, Body], _)))  --> !, loops_seq(Body).
-loops(lbl(_, repeat(_, [Body, _], _))) --> !, loops_seq(Body).
-loops(lbl(_, if(_, [_, T, E], _)))     --> !, loops(T), loops(E).
-loops(lbl(_, compound(_, [Ss], _)))    --> !, loops_seq(Ss).
-loops(_) --> [].
+loops(lbl(_, while(_, [_, Body], _)), A)  --> !, loops_seq(Body, A).
+loops(lbl(_, repeat(_, [Body, _], _)), A) --> !, loops_seq(Body, A).
+loops(lbl(_, if(_, [_, T, E], _)), A)     --> !, loops(T, A), loops(E, A).
+loops(lbl(_, compound(_, [Ss], _)), A)    --> !, loops_seq(Ss, A).
+loops(_, _) --> [].
 
 nested(Stmts, Outer) -->
     { findall(loop(P, L, nested(Outer), []),
@@ -71,19 +85,32 @@ nested(Stmts, Outer) -->
                  *        CLASSIFICATION        *
                  *******************************/
 
-classify(P, Var, Body, Verdict, Classes) :-
+classify(P, Var, Body, Aliasable, Verdict, Classes) :-
     var_node(Var, I),
-    seq_access(Body, acc(Refs, Chgs, Assoc, Arrays, Effects)),
+    seq_access(Body, acc(Refs, Chgs, Assoc, Arrays, Effects0)),
     pairs_keys(Assoc, AssocVars),
     pairs_keys(Arrays, ArrayVars0),
     sort(ArrayVars0, ArrayVars),
     foldl(ord_union, [Refs, Chgs, AssocVars, ArrayVars], [I], All),
+    ord_union(Chgs, AssocVars, Changed),
+    alias_effects(Body, Changed, Aliasable, Effects0, Effects),
     maplist(var_class(P, I, Chgs, Assoc, Arrays), All, Classes),
     findall(dependent(V), member(V-dependent, Classes), Deps),
     append(Effects, Deps, Reasons),
     (   Reasons == []
     ->  Verdict = parallel
     ;   Verdict = serial(Reasons)
+    ).
+
+%   alias_effects(+Body, +Changed, +Aliasable, +Effects0, -Effects): add
+%   vparam_alias if Body reads a var parameter and changes a variable
+%   that parameter might be another name for.
+alias_effects(Body, Changed, Aliasable, Effects0, Effects) :-
+    (   \+ ord_memberchk(vparam_change, Effects0),
+        sub_term(N, Body), compound(N), N = vparam(_, _, _),
+        ord_intersect(Changed, Aliasable)
+    ->  ord_add_element(Effects0, vparam_alias, Effects)
+    ;   Effects = Effects0
     ).
 
 var_class(P, I, Chgs, Assoc, Arrays, V, V-Class) :-

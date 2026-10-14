@@ -49,4 +49,38 @@ test(procedure_named_main) :-
     assertion(PBody = compound(3, [[assign(3, _, _)]], void)),
     assertion(MBody = compound(4, [[assign(4, _, _), pcall(4, [main, []], void)]], void)).
 
+%   A call can reach globals and var arguments only, so a loop over a
+%   local temporary stays parallel even though a call follows it.
+test(call_does_not_touch_caller_locals) :-
+    typed("program t;\nvar g: integer;\nprocedure show; begin g := g + 1 end;\n\c
+           procedure work; var i: integer; t: real; a: array[1..9] of real;\n\c
+           begin for i := 1 to 9 do begin t := i * 2.0; a[i] := t end; show end;\n\c
+           begin work end.", T),
+    analyse_program(T, [_, _, routine(work, _, [loop(_, 5, V, _)], _)]),
+    assertion(V == parallel).
+
+%   x may be the global a itself (rev(a)): reading x while changing a
+%   is a race, so the loop must stay serial.
+test(var_param_read_may_alias_changed_global) :-
+    typed("program t;\nconst n = 9; type vec = array[1..n] of integer;\n\c
+           var a: vec;\nprocedure rev(var x: vec); var k: integer;\n\c
+           begin for k := 1 to n do a[k] := x[n + 1 - k] end;\nbegin rev(a) end.", T),
+    analyse_program(T, [_, routine(rev, _, [loop(_, 5, V, _)], _)]),
+    assertion(V == serial([vparam_alias])).
+
+%   x may be s itself (p(s)): a reduction into s that reads x is wrong.
+test(var_param_read_may_alias_reduction) :-
+    typed("program t;\nvar s: integer;\nprocedure p(var x: integer); var k: integer;\n\c
+           begin for k := 1 to 20 do s := s + x end;\nbegin s := 1; p(s) end.", T),
+    analyse_program(T, [_, routine(p, _, [loop(_, 4, V, _)], _)]),
+    assertion(V == serial([vparam_alias])).
+
+%   Reading a var parameter is fine when the loop changes only locals.
+test(var_param_read_with_local_changes_only) :-
+    typed("program t;\nconst n = 9; type vec = array[1..n] of integer;\n\c
+           procedure p(var x: vec); var k: integer; b: vec;\n\c
+           begin for k := 1 to n do b[k] := x[k]; x := b end;\nbegin end.", T),
+    analyse_program(T, [_, routine(p, _, [loop(_, 4, V, _)], _)]),
+    assertion(V == parallel).
+
 :- end_tests(transform).

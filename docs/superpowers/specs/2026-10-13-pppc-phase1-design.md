@@ -251,8 +251,11 @@ if any exist, all are printed and compilation fails.
    (`def/2`, `use/2`, `succ/2`), then computes
    `reach(Var, DefLabel, UseLabel)` as a tabled fixpoint. Array element
    writes are non-killing definitions of the whole array; `var`
-   parameters and procedure calls are treated conservatively (a call
-   defines and uses every variable it could reach). Extra nodes: `[-1]`
+   parameters and procedure calls are treated conservatively: a call
+   defines (non-killing) and uses every variable the callee could
+   reach — the globals not shadowed in the calling routine, the calling
+   routine's own `var` parameters, and the call's `var` arguments — but
+   not the caller's locals or value parameters. Extra nodes: `[-1]`
    (entry, defines every variable) and `[0]` (exit, uses globals, `var`
    parameters and the function result). The facts live inside
    `with_dataflow/4`, which loads them, runs a goal and clears them and
@@ -281,7 +284,11 @@ if any exist, all are printed and compilation fails.
      (a private copy of a partly assigned array would lose elements);
    - a body that writes output (`write`) is never parallel (output order);
    - a body that assigns through a `var` parameter is never parallel
-     (possible aliasing);
+     (`vparam_change`: possible aliasing);
+   - a body that reads a `var` parameter while changing a global (or
+     another `var` parameter) is never parallel (`vparam_alias`): the
+     parameter may be that global, e.g. `rev(a)` reading `x[n+1-k]`
+     while writing `a[k]`, or `p(s)` reducing `x` into `s`;
    - only the outermost eligible loop is marked (no nested parallelism).
 4. **Transformation** (`transform.pl`): each marked loop becomes
    `omp_for(L, [Var, From, To, Dir, Body, Clauses])` with
@@ -401,6 +408,9 @@ reflected above:
   inside `semantic.pl` (5.3, 5.4).
 - `carried/3` replaces the paper's `before/2` test; locals must be wholly
   assigned; output and `var`-parameter assignment keep a loop serial (6.4).
+- After the final review: reading a `var` parameter while changing a
+  global keeps a loop serial (`vparam_alias`), and a call's effects are
+  limited to what the callee can reach (6.4).
 - Missing source file error; internal errors carry a reason (8).
 - `swipl pppc` pack app instead of a separate binary; `test/unit.pl`,
   `test/e2e.plt`, `tools/doc.pl`; no `.envrc` (2, 3, 7, 9).
