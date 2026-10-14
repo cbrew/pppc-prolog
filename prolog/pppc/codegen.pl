@@ -1,7 +1,8 @@
 :- module(pppc_codegen,
           [ generate_c/2,               % +Typed, -CText
             c_expr/2,                   % +TypedExpr, -CText (testing)
-            c_stmt/2                    % +TypedStmt, -CText (testing)
+            c_stmt/2,                   % +TypedStmt, -CText (testing)
+            runtime_text/1              % -CText
           ]).
 :- use_module(library(apply)).
 :- use_module(library(assoc)).
@@ -203,6 +204,11 @@ proc_def(proc(L, [Name, Params, R, block(_, [Decls, _, Body], _)], _), Types) --
                  *******************************/
 
 runtime --> { runtime_text(T), string_codes(T, Cs) }, Cs.
+
+%!  runtime_text(-CText:string) is det.
+%
+%   The C prelude every generated program starts with: headers and the
+%   pppc_ helper functions. pppc_calibrate times operations with it.
 
 runtime_text(
 "#include <stdio.h>

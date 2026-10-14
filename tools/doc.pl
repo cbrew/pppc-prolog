@@ -12,4 +12,5 @@
 
 main :-
     expand_file_name('prolog/pppc/*.pl', Passes),
+    maplist(ensure_loaded, Passes),     % e.g. calibrate.pl, not loaded by pppc
     maplist([F]>>doc_save(F, [doc_root(doc)]), ['prolog/pppc.pl'|Passes]).

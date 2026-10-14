@@ -1,5 +1,6 @@
 :- use_module(library(process)).
 :- use_module(library(readutil)).
+:- use_module(library(pppc/cost)).
 
 /*  Runs the installed `swipl pppc` app (the pack must be linked into
     SWIPL_PACK_PATH, which the devenv shell does). */
@@ -62,5 +63,14 @@ test(bad_constants_exit_1) :-
     pppc([F2], S2, _, E2),
     assertion(S2 == exit(1)),
     assertion(sub_string(E2, _, _, _, ":2: cannot compute constant `z': division by zero")).
+
+test(calibrate_app_writes_table) :-
+    tmp_file_stream(text, File, S), close(S),
+    process_create(path(swipl), [pppc_calibrate, '--max-threads', '1', '--repeat', '1', '-o', File],
+                   [stderr(pipe(E)), process(Pid)]),
+    read_string(E, _, Err), close(E),
+    process_wait(Pid, Status),
+    assertion(Status-Err == exit(0)-""),
+    load_cost_table(File, _).
 
 :- end_tests(cli).

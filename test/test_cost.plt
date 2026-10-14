@@ -31,6 +31,12 @@ test(unit_table_loads) :-
     unit_cost(T, write_item, C2), assertion(C2 == 1),
     trips(T, N), assertion(N == 25).
 
+test(default_table_loads) :-
+    default_cost_file(F),
+    load_cost_table(F, T),
+    unit_cost(T, loop, C),
+    assertion(integer(C)).
+
 %   The semantic pass's typing rules test membership rather than
 %   enumerate, so the check runs over every operator of the language
 %   and every pair of scalar types.
