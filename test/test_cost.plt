@@ -1,0 +1,98 @@
+:- use_module(library(pppc/cost)).
+:- use_module(library(pppc/semantic)).
+:- use_module(library(readutil)).
+:- use_module(library(apply)).
+:- use_module(library(lists)).
+
+:- begin_tests(cost).
+
+unit_file('test/costs/unit.pl').
+
+%   variant(+Drop, +Add, -File): a copy of the unit table without the
+%   lines that start with Drop, plus the text Add.
+variant(Drop, Add, File) :-
+    unit_file(U),
+    read_file_to_string(U, Text, []),
+    split_string(Text, "\n", "", Lines),
+    exclude(dropped(Drop), Lines, Kept),
+    atomic_list_concat(Kept, '\n', Body),
+    tmp_file_stream(text, File, S),
+    format(S, "~w~n~w~n", [Body, Add]),
+    close(S).
+
+dropped(Drop, Line) :-
+    Drop \== "",
+    string_concat(Drop, _, Line).
+
+test(unit_table_loads) :-
+    unit_file(F),
+    load_cost_table(F, T),
+    op2_cost(T, +, real, real, C1), assertion(C1 == 1),
+    unit_cost(T, write_item, C2), assertion(C2 == 1),
+    trips(T, N), assertion(N == 25).
+
+%   The semantic pass's typing rules test membership rather than
+%   enumerate, so the check runs over every operator of the language
+%   and every pair of scalar types.
+test(required_operators_match_semantic_pass) :-
+    Types = [integer, real, boolean],
+    forall(( member(Op, [+, -, *, /, div, mod, min, max, and, or,
+                         =, '<>', <, '<=', >, '>=']),
+             member(L, Types), member(R, Types) ),
+           assertion(( pppc_semantic:op2_rule(Op, L, R, _)
+                     ->  required_entry(op2(Op/L/R))
+                     ;   \+ required_entry(op2(Op/L/R)) ))),
+    forall(( member(Op, [-, not]), member(T, Types) ),
+           assertion(( pppc_semantic:op1_rule(Op, T, _)
+                     ->  required_entry(op1(Op/T))
+                     ;   \+ required_entry(op1(Op/T)) ))),
+    forall(required_entry(func(F)),
+           assertion(pppc_semantic:builtin_name(F))).
+
+test(negative_cost, throws(pppc(bad_cost_table(_, cost(index, -1))))) :-
+    variant("cost(index", "cost(index, -1).", F),
+    load_cost_table(F, _).
+
+test(unknown_fact, throws(pppc(bad_cost_table(_, colour(blue))))) :-
+    variant("", "colour(blue).", F),
+    load_cost_table(F, _).
+
+test(duplicate_entry, throws(pppc(bad_cost_table(_, duplicate(cost(loop, 3)))))) :-
+    variant("", "cost(loop, 3).", F),
+    load_cost_table(F, _).
+
+test(missing_entry, throws(pppc(bad_cost_table(_, missing(func(sqrt)))))) :-
+    variant("cost_func(sqrt", "", F),
+    load_cost_table(F, _).
+
+test(syntax_error, throws(pppc(bad_cost_table(_, syntax_error(_))))) :-
+    variant("", "cost(loop, ).", F),
+    load_cost_table(F, _).
+
+test(missing_file, throws(pppc(cost_table_missing('no/such/table.pl')))) :-
+    load_cost_table('no/such/table.pl', _).
+
+test(overhead_measured) :-
+    unit_file(F), load_cost_table(F, T),
+    overhead(T, fork_join, 3, C),
+    assertion(C == 300).
+
+test(overhead_interpolated) :-
+    % fork/join measured at 1 and 4 only: 100 + 300 * 1/3
+    variant("overhead(fork_join", "overhead(fork_join, 1, 100).\noverhead(fork_join, 4, 400).", F),
+    load_cost_table(F, T),
+    overhead(T, fork_join, 2, C),
+    assertion(C == 200).
+
+test(overhead_extrapolated) :-
+    unit_file(F), load_cost_table(F, T),
+    overhead(T, reduction, 10, C),
+    assertion(C == 100).
+
+test(overhead_single_point) :-
+    variant("overhead(reduction", "overhead(reduction, 1, 7).", F),
+    load_cost_table(F, T),
+    overhead(T, reduction, 6, C),
+    assertion(C == 7).
+
+:- end_tests(cost).

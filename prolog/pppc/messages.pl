@@ -24,6 +24,28 @@ pppc_message(File, no_source) -->
     [ '~w: cannot open source file'-[File] ].
 pppc_message(File, internal(Pass, Reason)) -->
     [ '~w: internal compiler error in pass ~w: ~p'-[File, Pass, Reason] ].
+pppc_message(File, bad_threads(N)) -->
+    [ '~w: the number of threads must be a positive integer, not ~p'-[File, N] ].
+pppc_message(_, cost_table_missing(Table)) -->
+    [ '~w: cannot open cost table'-[Table] ].
+pppc_message(_, bad_cost_table(Table, Culprit)) -->
+    [ '~w: '-[Table] ],
+    cost_table(Culprit).
+pppc_message(Who, calibrate(Why)) -->
+    [ '~w: '-[Who] ],
+    calibrate(Why).
+
+cost_table(missing(Entry))     --> !, [ 'cost table has no entry for ~q'-[Entry] ].
+cost_table(duplicate(Fact))    --> !, [ 'duplicate cost table entry ~q'-[Fact] ].
+cost_table(syntax_error(What)) --> !, [ 'syntax error in cost table: ~w'-[What] ].
+cost_table(Fact)               --> [ 'invalid cost table entry ~q'-[Fact] ].
+
+calibrate(no_compiler)       --> !, [ 'cannot run gcc' ].
+calibrate(build_failed(Out)) --> !, [ 'the calibration program does not build:~n~w'-[Out] ].
+calibrate(run_failed(St))    --> !, [ 'the calibration program failed: ~p'-[St] ].
+calibrate(bad_output(Line))  --> !, [ 'unexpected calibration output: ~w'-[Line] ].
+calibrate(no_signal)         --> !, [ 'integer addition was too fast to time; use more iterations' ].
+calibrate(Why)               --> [ 'calibration failed: ~p'-[Why] ].
 
 found(eof)      --> !, [ 'end of file' ].
 found(kw(K))    --> !, [ '`~w''' - [K] ].

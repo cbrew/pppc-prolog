@@ -39,4 +39,20 @@ test(constant_error) :-
     render(pppc('a.pas', semantic(2, constant_error(z, zero_divisor))), T),
     assertion(T == "a.pas:2: cannot compute constant `z': division by zero\n").
 
+test(cost_table_missing) :-
+    render(pppc('a.pas', cost_table_missing('t.pl')), T),
+    assertion(T == "t.pl: cannot open cost table\n").
+
+test(bad_cost_table) :-
+    render(pppc('a.pas', bad_cost_table('t.pl', missing(func(sqrt)))), T),
+    assertion(T == "t.pl: cost table has no entry for func(sqrt)\n").
+
+test(bad_threads) :-
+    render(pppc('a.pas', bad_threads(0)), T),
+    assertion(T == "a.pas: the number of threads must be a positive integer, not 0\n").
+
+test(calibrate) :-
+    render(pppc(pppc_calibrate, calibrate(no_compiler)), T),
+    assertion(T == "pppc_calibrate: cannot run gcc\n").
+
 :- end_tests(messages).
