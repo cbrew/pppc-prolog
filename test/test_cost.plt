@@ -110,6 +110,23 @@ test(overhead_extrapolated) :-
     overhead(T, reduction, 10, C),
     assertion(C == 100).
 
+test(extrapolation_fits_every_point) :-
+    % a dip at the last point must not set the slope: the least-squares
+    % line through (1,100) (2,200) (3,300) (4,250) is 75 + 55 P
+    variant("overhead(fork_join", "overhead(fork_join, 1, 100).\noverhead(fork_join, 2, 200).\n\c
+             overhead(fork_join, 3, 300).\noverhead(fork_join, 4, 250).", F),
+    load_cost_table(F, T),
+    overhead(T, fork_join, 8, C),
+    assertion(C == 515).
+
+test(extrapolation_never_below_last_point) :-
+    % falling measurements fit 60 - 10 P, which is 0 at P = 6
+    variant("overhead(reduction", "overhead(reduction, 1, 50).\noverhead(reduction, 2, 40).\n\c
+             overhead(reduction, 3, 30).", F),
+    load_cost_table(F, T),
+    overhead(T, reduction, 6, C),
+    assertion(C == 30).
+
 test(overhead_single_point) :-
     variant("overhead(reduction", "overhead(reduction, 1, 7).", F),
     load_cost_table(F, T),

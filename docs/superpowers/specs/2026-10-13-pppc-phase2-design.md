@@ -109,8 +109,9 @@ a cost fails the suite.
 `Table` is a dict from kind to entries; `cost.pl` exports lookups
 (`op2_cost/5`, `op1_cost/4`, `func_cost/3`, `unit_cost/3`, `trips/2`,
 `overhead/4`). `overhead(Table, Kind, P, Cost)` returns the measured value
-at P, or for P beyond the largest measured point extrapolates linearly
-from the last two (the last one alone if only one is measured).
+at P, or for P beyond the largest measured point extrapolates along the
+least-squares line through every measured point, never below the value
+at the largest P (revision 10).
 
 ### 3.3 Default table
 
@@ -391,3 +392,15 @@ are the points where it departs from sections 1–7.
    since gcc deleted the empty loop and `cost(loop)` was always the
    clamp value 1 (the shipped table is unchanged, see 6 above).
    `--predict` columns keep a space between fields of any width.
+10. **Minor review fixes (2026-10-14).**
+    - Cost tables (3.2): a table that cannot be read for any reason
+      (also a directory) is `cost_table_missing`; a syntax error is
+      `syntax_error(Line, What)`; `cost_op2`, `cost_op1` and
+      `cost_func` facts must name an operation the language has.
+    - Calibration (5): each operator chain starts from operands that
+      keep its value steady and normal (b = 1, or a < b for `mod`),
+      hidden from gcc by a barrier, so divisions are neither folded
+      into multiplies nor run on 0 or denormals.
+    - Overheads (3.3): beyond the largest measured P, the
+      least-squares line through all measured points, never below the
+      value at the largest P, instead of the line through the last two.

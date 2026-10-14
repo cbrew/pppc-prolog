@@ -11,6 +11,7 @@
           ]).
 :- use_module(library(apply)).
 :- use_module(library(lists)).
+:- use_module(library(pairs)).
 
 /** <module> Target cost table
 
@@ -171,9 +172,10 @@ lookup(T, Kind, Key, C) :-
 %
 %   The overhead of Kind at P threads: the measured value, or a linear
 %   interpolation between the nearest measured points, or beyond the
-%   largest measured P a linear extrapolation from the last two (the
-%   last one alone if only one is measured). Cost may be a rational;
-%   it is never negative.
+%   largest measured P the least-squares line through every measured
+%   point, but never less than the value at the largest P (measurements
+%   are noisy, and one point should not set the slope). Cost may be a
+%   rational.
 overhead(T, Kind, P, C) :-
     get_dict(overhead, T, Es),
     findall(Q-X, member(Kind/Q-X, Es), Points),
@@ -181,9 +183,25 @@ overhead(T, Kind, P, C) :-
     ->  true
     ;   append(_, [P1-C1, P2-C2|_], Points), P1 < P, P < P2
     ->  C is C1 + (C2 - C1) * (P - P1) rdiv (P2 - P1)
-    ;   last(Points, P2-C2),
-        (   append(_, [P1-C1, P2-C2], Points)
-        ->  C is max(0, C2 + (C2 - C1) * (P - P2) rdiv (P2 - P1))
-        ;   C = C2
-        )
+    ;   last(Points, _-Last),
+        fit(Points, A, B),
+        C is max(Last, A + B * P)
     ).
+
+%   fit(+Points, -A, -B): the least-squares line Y = A + B X through
+%   Points, a list of X-Y; B is 0 for a single point.
+fit(Points, A, B) :-
+    pairs_keys_values(Points, Xs, Ys),
+    length(Points, N),
+    sum_list(Xs, SX), sum_list(Ys, SY),
+    MX is SX rdiv N, MY is SY rdiv N,
+    foldl(moments(MX, MY), Points, 0-0, Sxy-Sxx),
+    (   Sxx =:= 0
+    ->  B = 0
+    ;   B is Sxy rdiv Sxx
+    ),
+    A is MY - B * MX.
+
+moments(MX, MY, X-Y, Sxy0-Sxx0, Sxy-Sxx) :-
+    Sxy is Sxy0 + (X - MX) * (Y - MY),
+    Sxx is Sxx0 + (X - MX) * (X - MX).
