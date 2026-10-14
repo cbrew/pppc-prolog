@@ -1,1 +1,1 @@
-main 8 parallel hits:associative(+) i:index x:local y:local
+program 8 parallel hits:associative(+) i:index x:local y:local

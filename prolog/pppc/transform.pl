@@ -28,7 +28,8 @@ reduction(Op, Vars) terms with non-empty variable lists.
 %!  analyse_program(+Typed, -Routines:list) is det.
 %
 %   Routines has one routine(Name, Labelled, Loops, Reach) per routine
-%   (the main program first, named `main`). Reach is the sorted list of
+%   (the main program first, named `program`: a reserved word, so no
+%   user routine can have the same name). Reach is the sorted list of
 %   reach(Var, Def, Use) facts. Used for --dump and --report.
 analyse_program(Typed, Routines) :-
     program_routines(Typed, Rs),
@@ -38,7 +39,7 @@ analyse_program(Typed, Routines) :-
 parallelize_program(Typed, Parallel, Routines) :-
     analyse_program(Typed, Routines),
     Typed = program(L, [Name, block(BL, [Decls, Procs, Body], void)], void),
-    routine_body(main, Routines, Body, NewBody),
+    routine_body(program, Routines, Body, NewBody),
     maplist(transform_proc(Routines), Procs, NewProcs),
     Parallel = program(L, [Name, block(BL, [Decls, NewProcs, NewBody], void)], void).
 
@@ -60,7 +61,7 @@ routine_body(Name, Routines, compound(L, _, _), NewBody) :-
 
 program_routines(program(_, [_, block(_, [Decls, Procs, Body], _)], _), [Main|Rs]) :-
     decl_names(Decls, Globals),
-    Main = r(main, Body, Globals, []),
+    Main = r(program, Body, Globals, []),
     maplist(proc_routine(Globals), Procs, Rs).
 
 proc_routine(Globals, proc(_, [Name, Params, R, block(_, [Decls, _, Body], _)], _),

@@ -1,1 +1,1 @@
-main 9 parallel h:read_only i:index sum:associative(+) x:local
+program 9 parallel h:read_only i:index sum:associative(+) x:local

@@ -293,7 +293,10 @@ if any exist, all are printed and compilation fails.
 
 ### 6.5 Code generation (`codegen.pl`)
 
-DCG producing C99 text: `#include`s and a small inline runtime
+DCG producing C99 text. Every Pascal name (variable, routine, record
+field) is emitted with the prefix `p_`, so no Pascal name can clash with
+C keywords, library functions, predefined macros or the `pppc_` runtime,
+and no two Pascal names map to the same C name. The output has `#include`s and a small inline runtime
 (`pppc_rt.h` contents emitted into the file: thread-safe `random`,
 write helpers), typedefs for Pascal types, globals as `static` in
 `main`'s translation unit, functions, `main`. Each statement is
@@ -318,7 +321,9 @@ swipl pppc [--serial] [--dump=tokens|parse|typed|labelled|reach|parallel]
 
 - `--dump=Stage` prints the IR at that stage with `print_term/2` and stops.
 - `--report` prints one line per `for` loop (used by the end-to-end tests):
-  `Routine Line parallel Var:Class …` (classes sorted by variable),
+  `Routine Line parallel Var:Class …` (classes sorted by variable; the
+  main program's Routine is `program`, a reserved word, so it cannot be
+  confused with a user routine called `main`),
   `Routine Line serial Reason …`, or `Routine Line nested OuterLine`.
 - Exit status: 0 success, 1 source error, 2 internal error.
 
@@ -359,6 +364,9 @@ All rendered via `prolog:message//1` in `messages.pl` as
   (`a[i] := a[i-1] + 1`), user procedure call in loop body, non-index
   subscript (`a[2*i]`), scalar read before written in the body, output
   in the body; their expected reports show the loop as serial.
+- **Expected output**: a program may have a checked-in `.out` file that the
+  serial build must print exactly, catching bugs both builds share
+  (`names.pas`: C-clashing names and a procedure called `main`).
 - **Features program** (`test/programs/features.pas`): procedures, `var`
   parameters, functions, records, zero assignment, `downto`, empty
   ranges, bounds changed in the body, `while`, booleans, `min`/`max`,

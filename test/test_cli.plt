@@ -45,7 +45,7 @@ test(missing_file_exit_1) :-
 
 test(report) :-
     pppc(['--report', 'test/programs/pi.pas'], exit(0), Out, _),
-    assertion(Out == "main 9 parallel h:read_only i:index sum:associative(+) x:local\n").
+    assertion(Out == "program 9 parallel h:read_only i:index sum:associative(+) x:local\n").
 
 test(dump_reach) :-
     pppc(['--dump=reach', 'test/programs/pi.pas'], exit(0), Out, _),

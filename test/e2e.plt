@@ -13,7 +13,8 @@ For every program in test/programs and test/programs/negative:
 
   1. the --report output equals the checked-in .report file;
   2. the serial and parallel C build with gcc -O2 -fopenmp;
-  3. the parallel binary run with OMP_NUM_THREADS=1 and 4 prints the
+  3. if there is a .out file, the serial binary prints exactly that;
+  4. the parallel binary run with OMP_NUM_THREADS=1 and 4 prints the
      same as the serial binary (numbers within a relative tolerance
      of 1e-9), except montepi, whose result must be within 0.01 of pi.
 */
@@ -40,11 +41,24 @@ test(run, [forall(program(Pas))]) :-
     build(Pas, serial, Serial),
     build(Pas, parallel, Parallel),
     run(Serial, 1, Reference),
+    expected_output(Pas, Reference),
     run(Parallel, 1, Out1),
     run(Parallel, 4, Out4),
     file_base_name(Pas, File), file_name_extension(Name, _, File),
     check(Name, Reference, Out1),
     check(Name, Reference, Out4).
+
+%   expected_output(+Pas, +Reference): if Pas has a checked-in .out
+%   file, the serial build must print exactly that. This catches bugs
+%   that the serial and parallel builds share.
+expected_output(Pas, Reference) :-
+    file_name_extension(Base, pas, Pas),
+    file_name_extension(Base, out, OutFile),
+    (   exists_file(OutFile)
+    ->  read_file_to_string(OutFile, Expected, []),
+        assertion(Reference == Expected)
+    ;   true
+    ).
 
 build(Pas, Mode, Exe) :-
     file_base_name(Pas, File), file_name_extension(Name, _, File),

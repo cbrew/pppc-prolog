@@ -1,7 +1,7 @@
-main 36 parallel i:index v:distributed
-main 43 parallel i:index pts:distributed
-main 53 parallel exp:associative(+) i:index
-main 57 parallel i:index k:associative(+)
-main 61 parallel i:index k:associative(+)
+program 36 parallel i:index v:distributed
+program 43 parallel i:index pts:distributed
+program 53 parallel exp:associative(+) i:index
+program 57 parallel i:index k:associative(+)
+program 61 parallel i:index k:associative(+)
 scale 16 serial vparam_change
 total 24 parallel a:read_only i:index s:associative(+)

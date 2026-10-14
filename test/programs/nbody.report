@@ -1,6 +1,6 @@
-main 9 parallel i:index m:distributed px:distributed py:distributed pz:distributed vx:distributed vy:distributed vz:distributed
-main 19 serial dependent(ax) dependent(ay) dependent(az) dependent(px) dependent(py) dependent(pz) dependent(vx) dependent(vy) dependent(vz)
-main 21 parallel ax:distributed ay:distributed az:distributed d2:local dx:local dy:local dz:local fx:local fy:local fz:local i:index inv:local j:local m:read_only px:read_only py:read_only pz:read_only
-main 26 nested 21
-main 42 parallel ax:read_only ay:read_only az:read_only i:index px:distributed py:distributed pz:distributed vx:distributed vy:distributed vz:distributed
-main 53 parallel e:associative(+) i:index m:read_only vx:read_only vy:read_only vz:read_only
+program 9 parallel i:index m:distributed px:distributed py:distributed pz:distributed vx:distributed vy:distributed vz:distributed
+program 19 serial dependent(ax) dependent(ay) dependent(az) dependent(px) dependent(py) dependent(pz) dependent(vx) dependent(vy) dependent(vz)
+program 21 parallel ax:distributed ay:distributed az:distributed d2:local dx:local dy:local dz:local fx:local fy:local fz:local i:index inv:local j:local m:read_only px:read_only py:read_only pz:read_only
+program 26 nested 21
+program 42 parallel ax:read_only ay:read_only az:read_only i:index px:distributed py:distributed pz:distributed vx:distributed vy:distributed vz:distributed
+program 53 parallel e:associative(+) i:index m:read_only vx:read_only vy:read_only vz:read_only

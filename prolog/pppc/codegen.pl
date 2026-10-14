@@ -21,7 +21,8 @@ Mapping (spec section 6.5):
                                  assignment and value parameters copy)
   - record([F-T, ...])        -> typedef struct { T F; ... } pppc_tN
   - main program variables    -> file-scope static variables
-  - var parameters            -> pointers, referenced as (*x)
+  - Pascal names              -> p_name (see c_name/2)
+  - var parameters            -> pointers, referenced as (*p_x)
   - function result           -> local pppc_result, returned at the end
   - for bounds                -> evaluated once into pppc_hi / pppc_lo
 */
@@ -127,23 +128,14 @@ fields([F-T|Fs], Types) --> ctype(T, Types), " ", cname(F), "; ", fields(Fs, Typ
 
 cname(N) --> { c_name(N, C) }, atom(C).
 
-%   Pascal names that collide with C keywords or the library names the
-%   generated code uses get a trailing underscore.
+%   Every Pascal name (variables, routines, record fields) gets the
+%   prefix p_. A blacklist of C names cannot be complete: <math.h>,
+%   <string.h> and gcc's predefined macros (y1, index, floor, linux, ...)
+%   all clash, and renaming only some names lets two Pascal names (int
+%   and int_) map to one C name. A uniform prefix is injective, and
+%   cannot produce the pppc_ prefix used by the runtime.
 c_name(N, C) :-
-    (   ( c_reserved(N) ; sub_atom(N, 0, _, _, pppc_) )
-    ->  atom_concat(N, '_', C)
-    ;   C = N
-    ).
-
-c_reserved(N) :-
-    memberchk(N, [ auto, break, case, char, const, continue, default, do,
-                   double, else, enum, extern, float, for, goto, if, inline,
-                   int, long, register, restrict, return, short, signed,
-                   sizeof, static, struct, switch, typedef, union, unsigned,
-                   void, volatile, while, bool, true, false, main, printf,
-                   putchar, fputs, puts, memset, memcpy, labs, fabs, sqrt,
-                   sin, cos, exp, log, lround, abs, random, rand, time,
-                   exit, stdout, stdin, stderr, errno, omp_get_thread_num ]).
+    atom_concat(p_, N, C).
 
                  /*******************************
                  *           PROGRAM            *
