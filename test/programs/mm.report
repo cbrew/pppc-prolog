@@ -3,4 +3,4 @@ program 9 nested 8
 program 14 parallel a:read_only b:read_only c:distributed i:index j:local k:local s:local
 program 15 nested 14
 program 18 nested 14
-program 23 serial unprofitable(2100,4348)
+program 23 serial unprofitable(2240,4247)
