@@ -133,4 +133,25 @@ test(bench_smoke) :-
     assertion(sub_string(Text, _, _, _, "| pi | Predicted |")),
     assertion(sub_string(Text, _, _, _, "## Loops at P=2")).
 
+test(app_keeps_notes) :-
+    tiny_sizes(Sizes),
+    sizes_file("old\n<!-- notes -->\nKeep me.\n", Out),
+    process_create(path(swipl), [pppc_bench, '--program', pi, '--threads', '1,2',
+                                 '--repeat', '1', '--sizes', Sizes, '-o', Out],
+                   [stderr(pipe(E)), process(Pid)]),
+    read_string(E, _, Err), close(E),
+    process_wait(Pid, Status),
+    assertion(Status-Err == exit(0)-""),
+    read_file_to_string(Out, Text, []),
+    assertion(sub_string(Text, _, _, _, "## Speedups (Table 4.1)")),
+    assertion(sub_string(Text, _, _, 0, "<!-- notes -->\nKeep me.\n")).
+
+test(app_bad_threads) :-
+    process_create(path(swipl), [pppc_bench, '--threads', '1,x'],
+                   [stderr(pipe(E)), process(Pid)]),
+    read_string(E, _, Err), close(E),
+    process_wait(Pid, Status),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "--threads needs positive integers")).
+
 :- end_tests(bench).
