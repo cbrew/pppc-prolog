@@ -1,5 +1,6 @@
 :- module(pppc_predict,
-          [ decide/5                    % +Routines0, +Table, +N, -Routines, -Prediction
+          [ decide/5,                   % +Routines0, +Table, +N, -Routines, -Prediction
+            speedup_points/2            % +N, -Ps
           ]).
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
@@ -57,7 +58,10 @@ decide(Rs0, Table, N, Rs, prediction(Times, Serial, Speedups)) :-
     speedup_points(N, Ps),
     maplist(speedup(Table, Rs0, Chosen, Serial), Ps, Speedups).
 
-%   speedup_points(+N, -Ps): the thread counts the speedup is given for.
+%!  speedup_points(+N, -Ps:list) is det.
+%
+%   The thread counts the speedup is given for: every P up to 8, then
+%   the powers of two below N, and N.
 speedup_points(N, Ps) :-
     Low is min(N, 8),
     numlist(1, Low, Ps0),

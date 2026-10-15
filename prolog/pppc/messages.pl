@@ -42,6 +42,9 @@ pppc_message(_, bad_cost_table(Table, Culprit)) -->
 pppc_message(Who, calibrate(Why)) -->
     [ '~w: '-[Who] ],
     calibrate(Why).
+pppc_message(Who, bench(Why)) -->
+    [ '~w: '-[Who] ],
+    bench(Why).
 
 cost_table(missing(Entry))     --> !, [ 'cost table has no entry for ~q'-[Entry] ].
 cost_table(duplicate(Fact))    --> !, [ 'duplicate cost table entry ~q'-[Fact] ].
@@ -54,6 +57,21 @@ calibrate(run_failed(St))    --> !, [ 'the calibration program failed: ~p'-[St] 
 calibrate(bad_output(Line))  --> !, [ 'unexpected calibration output: ~w'-[Line] ].
 calibrate(no_signal)         --> !, [ 'integer addition was too fast to time; use more iterations' ].
 calibrate(Why)               --> [ 'calibration failed: ~p'-[Why] ].
+
+bench(no_gcc) --> !, [ 'cannot run gcc' ].
+bench(build_failed(N, M, Err)) --> !,
+    [ 'the ~w build of ~w does not compile:~n~w'-[M, N, Err] ].
+bench(run_failed(N, M, P, St)) --> !,
+    [ 'the ~w build of ~w failed on ~d threads: ~p'-[M, N, P, St] ].
+bench(bad_timing(Line)) --> !, [ 'unexpected timing line: ~w'-[Line] ].
+bench(missing_size(N)) --> !, [ 'no size given for benchmark ~w'-[N] ].
+bench(bad_sizes(F, cannot_open)) --> !, [ '~w: cannot open sizes file'-[F] ].
+bench(bad_sizes(F, syntax_error(W))) --> !, [ '~w: syntax error in sizes file: ~w'-[F, W] ].
+bench(bad_sizes(F, duplicate(N))) --> !, [ '~w: more than one size for ~w'-[F, N] ].
+bench(bad_sizes(F, T)) --> !, [ '~w: invalid size entry ~q'-[F, T] ].
+bench(bad_threads(T)) --> !,
+    [ '--threads needs positive integers separated by commas, not ~w'-[T] ].
+bench(Why) --> [ 'bench failed: ~p'-[Why] ].
 
 found(eof)      --> !, [ 'end of file' ].
 found(kw(K))    --> !, [ '`~w''' - [K] ].

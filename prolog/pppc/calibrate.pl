@@ -4,7 +4,9 @@
             calibration_c/2,            % +Options, -CText
             parse_output/2,             % +Text, -Samples
             normalise/3,                % +Samples, +Options, -Facts
-            write_table/3               % +Stream, +Facts, +Options
+            write_table/3,              % +Stream, +Facts, +Options
+            cpu_model/1,                % -Model
+            gcc_version/1               % -Version
           ]).
 :- use_module(library(apply)).
 :- use_module(library(lists)).
@@ -476,6 +478,10 @@ write_table(S, Facts, Options) :-
     format(S, "    Costs are in units of one integer addition.~n*/~n~n", []),
     forall(member(F, Facts), portray_clause(S, F)).
 
+%!  cpu_model(-Model) is det.
+%!  gcc_version(-Version) is det.
+%
+%   The CPU model from /proc/cpuinfo and gcc's version, or `unknown`.
 cpu_model(Model) :-
     catch(read_file_to_string('/proc/cpuinfo', Text, []), _, fail),
     split_string(Text, "\n", "", Lines),
