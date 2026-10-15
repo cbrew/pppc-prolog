@@ -97,6 +97,35 @@ test(timed_function_loop) :-
     timing_keys(Err, Keys),
     assertion(Keys == [total-7-2]).
 
+%   tmp_source(+Text, -Pas): Text in a fresh .pas file.
+tmp_source(Text, Pas) :-
+    tmp_file_stream(text, File0, S0), close(S0),
+    file_name_extension(File0, pas, Pas),
+    setup_call_cleanup(open(Pas, write, S), write(S, Text), close(S)).
+
+%   A candidate loop that never runs is reported with 0 executions.
+test(loop_never_run) :-
+    tmp_source("program t;\nvar i: integer; s: real;\nbegin\n  s := 0;\n  if s > 1 then\n\c
+                    for i := 1 to 10 do s := s + i;\n  writeln(s)\nend.\n", Pas),
+    build(Pas, [timing(true), prediction(false)], Exe, _),
+    run(Exe, _, Err),
+    timing_keys(Err, Keys),
+    assertion(Keys == [program-6-0]).
+
+%   Loops are keyed by routine and line, so of two candidate loops that
+%   start on the same line only the first is timed (into its own slot,
+%   not added to the other's).
+test(two_loops_one_line) :-
+    tmp_source("program t;\nvar i, j: integer; s, u: real;\nbegin\n  s := 0; u := 0;\n\c
+                    for i := 1 to 3 do s := s + i; for j := 1 to 5 do u := u + j;\n\c
+                    writeln(s + u)\nend.\n", Pas),
+    build(Pas, [timing(true), prediction(false)], Exe, C),
+    aggregate_all(count, sub_string(C, _, _, _, "pppc_wtime() - pppc_t0"), Timers),
+    assertion(Timers == 1),
+    run(Exe, _, Err),
+    timing_keys(Err, Keys),
+    assertion(Keys == [program-5-1]).
+
 test(no_candidates_no_timing) :-
     tmp_file_stream(text, File0, S0), close(S0),
     file_name_extension(File0, pas, Pas),

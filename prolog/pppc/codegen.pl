@@ -40,10 +40,13 @@ Mapping (spec section 6.5):
 %   Options:
 %
 %     - timed(Keys)  time the loops named by Keys, a list of
-%       Routine-Line: the outermost for loop at Line in Routine's body
-%       (`program` for the main program). The program then prints
-%       `pppc_time Routine Line Executions Seconds` for each, in key
-%       order, on stderr at exit.
+%       Routine-Line: the first outermost for loop at Line in Routine's
+%       body (`program` for the main program), in source order. The
+%       program then prints `pppc_time Routine Line Executions Seconds`
+%       for each, in key order, on stderr at exit. A loop is known only
+%       by its line, so if a serial loop starts on the same line as a
+%       candidate loop nested in it or after it, the first one is the
+%       one timed.
 generate_c(Typed, Text) :-
     generate_c(Typed, [], Text).
 
@@ -274,33 +277,37 @@ static inline long pppc_random_int(long n) { return (long)(pppc_random() * (doub
                  *           TIMING             *
                  *******************************/
 
-%   timed_program(+Typed, +Keys, -Timed): Typed with each loop named in
-%   Keys wrapped as timed(K, Loop), K its position in Keys.
+%   timed_program(+Typed, +Keys, -Timed): Typed with the first loop
+%   named by each key of Keys wrapped as timed(K, Loop), K the key's
+%   position in Keys. The keys already used are threaded through the
+%   walk, so a second loop on the same line is left alone.
 timed_program(Typed, [], Typed) :- !.
 timed_program(program(L, [N, block(BL, [Ds, Ps, Body], V)], V1), Keys,
               program(L, [N, block(BL, [Ds, Ps1, Body1], V)], V1)) :-
-    timed_stmt(Keys, program, Body, Body1),
-    maplist(timed_proc(Keys), Ps, Ps1).
+    timed_stmt(Keys, program, Body, Body1, [], Used),
+    foldl(timed_proc(Keys), Ps, Ps1, Used, _).
 
 timed_proc(Keys, proc(L, [N, Pa, R, block(BL, [Ds, Ps, Body], V)], V1),
-           proc(L, [N, Pa, R, block(BL, [Ds, Ps, Body1], V)], V1)) :-
-    timed_stmt(Keys, N, Body, Body1).
+           proc(L, [N, Pa, R, block(BL, [Ds, Ps, Body1], V)], V1), U0, U) :-
+    timed_stmt(Keys, N, Body, Body1, U0, U).
 
-timed_stmt(Keys, R, S, timed(K, S)) :-
+%   timed_stmt(+Keys, +Routine, +Stmt, -Timed, +Used0, -Used)
+timed_stmt(Keys, R, S, timed(K, S), U0, [K|U0]) :-
     loop_line(S, L),
-    nth0(K, Keys, R-L), !.
-timed_stmt(Keys, R, compound(L, [Ss], T), compound(L, [Ss1], T)) :- !,
-    maplist(timed_stmt(Keys, R), Ss, Ss1).
-timed_stmt(Keys, R, if(L, [C, Th, El], T), if(L, [C, Th1, El1], T)) :- !,
-    timed_stmt(Keys, R, Th, Th1),
-    timed_stmt(Keys, R, El, El1).
-timed_stmt(Keys, R, while(L, [C, B], T), while(L, [C, B1], T)) :- !,
-    timed_stmt(Keys, R, B, B1).
-timed_stmt(Keys, R, repeat(L, [Ss, C], T), repeat(L, [Ss1, C], T)) :- !,
-    maplist(timed_stmt(Keys, R), Ss, Ss1).
-timed_stmt(Keys, R, for(L, [V, F, To, D, B], T), for(L, [V, F, To, D, B1], T)) :- !,
-    timed_stmt(Keys, R, B, B1).
-timed_stmt(_, _, S, S).
+    nth0(K, Keys, R-L),
+    \+ memberchk(K, U0), !.
+timed_stmt(Keys, R, compound(L, [Ss], T), compound(L, [Ss1], T), U0, U) :- !,
+    foldl(timed_stmt(Keys, R), Ss, Ss1, U0, U).
+timed_stmt(Keys, R, if(L, [C, Th, El], T), if(L, [C, Th1, El1], T), U0, U) :- !,
+    timed_stmt(Keys, R, Th, Th1, U0, U1),
+    timed_stmt(Keys, R, El, El1, U1, U).
+timed_stmt(Keys, R, while(L, [C, B], T), while(L, [C, B1], T), U0, U) :- !,
+    timed_stmt(Keys, R, B, B1, U0, U).
+timed_stmt(Keys, R, repeat(L, [Ss, C], T), repeat(L, [Ss1, C], T), U0, U) :- !,
+    foldl(timed_stmt(Keys, R), Ss, Ss1, U0, U).
+timed_stmt(Keys, R, for(L, [V, F, To, D, B], T), for(L, [V, F, To, D, B1], T), U0, U) :- !,
+    timed_stmt(Keys, R, B, B1, U0, U).
+timed_stmt(_, _, S, S, U, U).
 
 loop_line(for(L, _, _), L).
 loop_line(omp_for(L, _, _), L).
