@@ -147,6 +147,11 @@ test(wrong_type_const_exit_1) :-
     assertion(Status == exit(1)),
     assertion(sub_string(Err, _, _, _, "pi.pas:3: cannot override constant `n' (integer) with 2.5")).
 
+test(time_option) :-
+    pppc(['--time', '--serial', 'test/programs/pi.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, _, _, _, "atexit(pppc_time_report);")),
+    assertion(sub_string(Out, _, _, _, "\"program 9\"")).
+
 test(calibrate_app_writes_table) :-
     tmp_file_stream(text, File, S), close(S),
     process_create(path(swipl), [pppc_calibrate, '--max-threads', '1', '--repeat', '1', '-o', File],

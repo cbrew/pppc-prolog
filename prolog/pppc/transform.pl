@@ -1,5 +1,6 @@
 :- module(pppc_transform,
           [ analyse_program/2,          % +Typed, -Routines
+            candidate_loops/2,          % +Routines, -Keys
             parallelize_program/3,      % +Typed, -Parallel, -Routines
             parallelize_program/5       % +Typed, +Table, +N, -Parallel, -Routines
           ]).
@@ -36,6 +37,17 @@ reduction(Op, Vars) terms with non-empty variable lists.
 analyse_program(Typed, Routines) :-
     program_routines(Typed, Rs),
     maplist(analyse_routine, Rs, Routines).
+
+%!  candidate_loops(+Routines, -Keys:list) is det.
+%
+%   Keys is the sorted list of Routine-Line of the loops that obey the
+%   parallelization rules in Routines (from analyse_program/2): the
+%   loops run time prediction decides about, and a timed build times.
+candidate_loops(Routines, Keys) :-
+    findall(N-L, ( member(routine(N, _, Loops, _), Routines),
+                   member(loop(_, L, parallel, _), Loops) ),
+            Keys0),
+    sort(Keys0, Keys).
 
 %!  parallelize_program(+Typed, -Parallel, -Routines) is det.
 %

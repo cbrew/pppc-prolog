@@ -35,6 +35,8 @@ pppc_report/3 and pppc_predict/3:
   - prediction(Bool)  if `false`, parallelize every eligible loop
     without run time prediction, as Phase 1 did (pppc_compile/3 and
     pppc_report/3; threads and cost are then not used);
+  - timing(Bool)  if `true`, time each candidate loop (pppc_compile/3;
+    see pppc_codegen:generate_c/3);
   - const(Name=Value)  give the program-level constant Name the value
     Value, a literal of its type, instead of its declared one (may be
     repeated; also accepted by pppc_stage/4).
@@ -60,7 +62,16 @@ pppc_compile(File, Options, CText) :-
     ->  Program = Typed
     ;   parallelized(Typed, Options, Program)
     ),
-    pass(codegen, generate_c(Program, CText)).
+    codegen_options(Typed, Options, COptions),
+    pass(codegen, generate_c(Program, COptions, CText)).
+
+%   codegen_options(+Typed, +Options, -COptions): with timing(true),
+%   time the candidate loops, whether or not they are parallel.
+codegen_options(Typed, Options, [timed(Keys)]) :-
+    option(timing(true), Options), !,
+    pass(parallelizer, analyse_program(Typed, Rs)),
+    candidate_loops(Rs, Keys).
+codegen_options(_, _, []).
 
 parallelized(Typed, Options, Program) :-
     (   option(prediction(false), Options)

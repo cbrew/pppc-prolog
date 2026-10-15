@@ -100,6 +100,23 @@ test(integer_literals_are_long) :-
     c_expr(op2(1, [*, iconst(1, [100000], integer), iconst(1, [100000], integer)], integer), C),
     assertion(C == "(100000L * 100000L)").
 
+%   A timed loop is wrapped in a block that adds its time and count to
+%   slot K; the report is registered first thing in main.
+test(timed_loop) :-
+    Loop = for(3, [id(3, [i], integer), iconst(3, [1], integer), iconst(3, [9], integer),
+                   up, empty(3, [], void)], void),
+    P = program(1, [t, block(1, [[var_decl(2, [[i], integer], void)], [],
+                                 compound(3, [[Loop]], void)], void)], void),
+    generate_c(P, [timed([program-3])], C),
+    assertion(sub_string(C, _, _, _, "static const char *const pppc_time_where[1] = { \"program 3\" };")),
+    assertion(sub_string(C, _, _, _, "int main(void)\n{\n    atexit(pppc_time_report);\n")),
+    assertion(sub_string(C, _, _, _, "    {\n        double pppc_t0 = pppc_wtime();\n        {\n")),
+    assertion(sub_string(C, _, _, _, "        pppc_time_s[0] += pppc_wtime() - pppc_t0;\n        pppc_time_n[0]++;\n    }\n")),
+    generate_c(P, C0),
+    assertion(\+ sub_string(C0, _, _, _, "pppc_time")),
+    generate_c(P, [], C1),
+    assertion(C1 == C0).
+
 %   lines(+Text, -Lines): split generated code into lines, dropping the
 %   empty string after the final newline.
 lines(Text, Lines) :-

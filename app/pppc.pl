@@ -18,6 +18,7 @@ opt_type(prediction, prediction, boolean).
 opt_type(threads, threads, integer).
 opt_type(cost, cost, file).
 opt_type(const, const, term).
+opt_type(time, timing, boolean).
 opt_type(dump,   dump,   oneof([tokens, parse, typed, labelled, reach, predict, parallel])).
 opt_type(o,      output, file(write)).
 
@@ -27,6 +28,7 @@ opt_help(predict, "Print predicted loop times and speedups").
 opt_help(prediction, "Decide parallel loops by predicted time (default true; --no-prediction parallelizes every eligible loop)").
 opt_help(threads, "Number of threads to predict for (default 4)").
 opt_help(cost, "Cost table file (default: the shipped table)").
+opt_help(timing, "Time each candidate loop; print pppc_time lines on stderr at exit").
 opt_help(const, "NAME=VALUE: give program constant NAME this value (repeatable)").
 opt_help(dump,   "Print the intermediate representation after a stage and stop").
 opt_help(output, "Write the C code to this file (default: standard output)").
