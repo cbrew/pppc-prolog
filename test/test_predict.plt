@@ -4,6 +4,7 @@
 :- use_module(library(pppc/transform)).
 :- use_module(library(pppc/cost)).
 :- use_module(library(pppc/predict)).
+:- use_module(library(pppc)).
 
 /*  Expected times are worked out by hand against test/costs/unit.pl:
     every operation and cost/2 key costs 1, default_trips is 25,
@@ -206,5 +207,19 @@ test(loops_in_routines_decided) :-
     assertion(Times == [loop_time(p, 4, 5000, 1650)]),
     % main: the body of p + call 1
     assertion(S == 5001).
+
+%   points(Ps) asks for speedups at thread counts that are not speedup
+%   points of N; the loops are still chosen at N.
+test(speedups_at_any_points) :-
+    pppc_predict('test/programs/pi.pas', [threads(12), points([1, 10, 12])],
+                 prediction(_, _, Speedups)),
+    pairs_keys(Speedups, Ps),
+    assertion(Ps == [1, 10, 12]),
+    pppc_predict('test/programs/pi.pas', [threads(12)], prediction(_, _, Default)),
+    memberchk(12-S12, Default),
+    assertion(memberchk(12-S12, Speedups)).
+
+test(bad_points, throws(pppc(bad_threads([0, 2])))) :-
+    pppc_predict('test/programs/pi.pas', [points([0, 2])], _).
 
 :- end_tests(predict).

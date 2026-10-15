@@ -178,4 +178,16 @@ test(app_bad_threads) :-
     assertion(Status == exit(1)),
     assertion(sub_string(Err, _, _, _, "--threads needs positive integers")).
 
+%   Thread counts are sorted and deduplicated; an empty list or a count
+%   below 1 is an error from the API too, not only from the app.
+test(threads_sorted_and_deduplicated) :-
+    bench_options([threads([4, 2, 2])], Options),
+    assertion(memberchk(threads([2, 4]), Options)).
+
+test(threads_empty, throws(pppc(bench(bad_threads([]))))) :-
+    bench_options([threads([])], _).
+
+test(threads_not_positive, throws(pppc(bench(bad_threads([1, 0]))))) :-
+    bench_options([threads([1, 0])], _).
+
 :- end_tests(bench).

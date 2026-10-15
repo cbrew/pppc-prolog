@@ -51,23 +51,32 @@ Errors are thrown as pppc(bench(Why)).
 
 %!  bench_options(+Options0, -Options) is det.
 %
-%   Options0 completed with the defaults.
+%   Options0 completed with the defaults, the thread counts sorted and
+%   without duplicates. Throws pppc(bench(bad_threads(Ps))) if the
+%   thread counts are not a non-empty list of positive integers.
 bench_options(Options0, Options) :-
     current_prolog_flag(cpu_count, CPUs),
-    speedup_points(CPUs, Ps),
+    speedup_points(CPUs, Default),
     default_cost_file(Cost),
     merge_options(Options0,
-                  [ threads(Ps), repeat(3),
+                  [ threads(Default), repeat(3),
                     programs([pi, montepi, mandel, linear, nbody, mm, cg]),
                     sizes('bench/sizes.pl'), dir('test/programs'), cost(Cost) ],
-                  Options).
+                  Options1),
+    option(threads(Ps0), Options1),
+    (   is_list(Ps0), Ps0 \== [], forall(member(P, Ps0), (integer(P), P > 0))
+    ->  sort(Ps0, Ps)
+    ;   throw(pppc(bench(bad_threads(Ps0))))
+    ),
+    merge_options([threads(Ps)], Options1, Options).
 
 %!  bench(+Options, -Results) is det.
 %
 %   Run the benchmarks. Results is a dict bench{...} with the keys
 %   date, cpu, gcc, cost, repeat, threads, and programs: one dict
 %   prog{name, sizes, unit, speedups, loops, runs} per benchmark, where
-%   speedups is the predicted P-Speedup at Pmax, loops is P-LoopTimes
+%   speedups is the predicted P-Speedup for every thread count, with
+%   the loops chosen at Pmax, loops is P-LoopTimes
 %   (the loop_time/4 terms of pppc_predict/3 at P) for P = 4 and Pmax,
 %   unit is the cost table's seconds per unit, and runs is a list of
 %   run(Mode, P, WallSeconds, Timings) with Timings as parse_timings/2
@@ -103,7 +112,7 @@ bench_program(Options, Sizes, Unit, Name, Prog) :-
     findall(const(O), member(O, Overrides), Consts),
     Base = [cost(Cost)|Consts],
     max_list(Ps, Pmax),
-    pppc_predict(Pas, [threads(Pmax)|Base], prediction(_, _, Speedups)),
+    pppc_predict(Pas, [threads(Pmax), points(Ps)|Base], prediction(_, _, Speedups)),
     loop_points(Ps, LoopPs),
     findall(P-Times,
             ( member(P, LoopPs),

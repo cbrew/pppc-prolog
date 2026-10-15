@@ -1,5 +1,6 @@
 :- module(pppc_predict,
           [ decide/5,                   % +Routines0, +Table, +N, -Routines, -Prediction
+            decide/6,                   % +Routines0, +Table, +N, +Points, -Routines, -Prediction
             speedup_points/2            % +N, -Ps
           ]).
 :- use_module(library(aggregate)).
@@ -34,6 +35,7 @@ routines whose costing is in progress (to stop at recursion).
 */
 
 %!  decide(+Routines0, +Table, +N, -Routines, -Prediction) is det.
+%!  decide(+Routines0, +Table, +N, +Points, -Routines, -Prediction) is det.
 %
 %   Routines is Routines0 with every `parallel` loop whose predicted
 %   parallel time at N threads is not less than its serial time
@@ -44,9 +46,14 @@ routines whose costing is in progress (to stop at recursion).
 %
 %   Loops has loop_time(Routine, Line, SerialTime, ParallelTimeAtN) for
 %   each loop that was `parallel` in Routines0, Serial is the
-%   program's predicted serial time and Speedups is [1-S1, ..., N-SN],
-%   for every P up to 8, then for powers of two, and for N.
-decide(Rs0, Table, N, Rs, prediction(Times, Serial, Speedups)) :-
+%   program's predicted serial time and Speedups is P-Speedup for each
+%   P of Points, with the loops chosen for N. decide/5 takes the
+%   speedup points of N (speedup_points/2) as Points.
+decide(Rs0, Table, N, Rs, Prediction) :-
+    speedup_points(N, Ps),
+    decide(Rs0, Table, N, Ps, Rs, Prediction).
+
+decide(Rs0, Table, N, Ps, Rs, prediction(Times, Serial, Speedups)) :-
     routine_times(Table, Rs0, serial, STimes),
     maplist(decide_routine(Table, Rs0, STimes, N), Rs0, Rs, Timess),
     append(Timess, Times),
@@ -55,7 +62,6 @@ decide(Rs0, Table, N, Rs, prediction(Times, Serial, Speedups)) :-
                       reductions(Classes, NR) ),
             Chosen),
     get_assoc(program, STimes, Serial),
-    speedup_points(N, Ps),
     maplist(speedup(Table, Rs0, Chosen, Serial), Ps, Speedups).
 
 %!  speedup_points(+N, -Ps:list) is det.

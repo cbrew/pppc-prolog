@@ -151,7 +151,10 @@ report_line(R, loop(_, L, nested(O), _), Line) :-
 %!  pppc_predict(+File, +Options, -Prediction) is det.
 %
 %   Prediction is prediction(Loops, Serial, Speedups) as described in
-%   pppc_predict:decide/5, for threads(N) (default 4).
+%   pppc_predict:decide/6, for threads(N) (default 4). Option
+%   points(Ps), a list of thread counts, gives the speedups at those
+%   counts instead of the speedup points of N; the loops are still
+%   chosen for N.
 pppc_predict(File, Options, Prediction) :-
     decided(File, Options, _, Prediction).
 
@@ -177,8 +180,20 @@ analysis(File, Options, Routines) :-
 decided(File, Options, Routines, Prediction) :-
     front_end(File, Options, Typed),
     prediction_setup(Options, Table, N),
+    speedup_options(Options, N, Points),
     pass(parallelizer, analyse_program(Typed, Routines0)),
-    pass(predict, decide(Routines0, Table, N, Routines, Prediction)).
+    pass(predict, decide(Routines0, Table, N, Points, Routines, Prediction)).
+
+%   speedup_options(+Options, +N, -Points): the thread counts to give
+%   speedups for: points(Ps), sorted, or the speedup points of N.
+speedup_options(Options, N, Points) :-
+    (   option(points(Ps), Options)
+    ->  (   is_list(Ps), Ps \== [], forall(member(P, Ps), (integer(P), P > 0))
+        ->  sort(Ps, Points)
+        ;   throw(pppc(bad_threads(Ps)))
+        )
+    ;   speedup_points(N, Points)
+    ).
 
 %   prediction_setup(+Options, -Table, -N): the cost table and number of
 %   threads to predict with.

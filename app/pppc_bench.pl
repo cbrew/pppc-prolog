@@ -25,7 +25,7 @@ opt_type(sizes,   sizes,   file).
 opt_type(cost,    cost,    file).
 
 opt_help(output,  "Write the results to this file (default: standard output)").
-opt_help(threads, "Comma-separated thread counts (default: 1-8 and the number of CPUs)").
+opt_help(threads, "Comma-separated thread counts (default: 1-8, the powers of two above 8, and the number of CPUs)").
 opt_help(repeat,  "Runs of each binary at each thread count; the median is kept (default 3)").
 opt_help(program, "Run only this benchmark (repeatable; default: all seven)").
 opt_help(sizes,   "Problem sizes file (default bench/sizes.pl)").
