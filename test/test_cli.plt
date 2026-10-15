@@ -142,6 +142,20 @@ test(bad_const_exit_1) :-
     assertion(Status == exit(1)),
     assertion(sub_string(Err, _, _, _, "--const needs NAME=VALUE")).
 
+%   The value is read on its own, so a negative number needs no space
+%   (Prolog alone would read n=-5 with the operator =-).
+test(negative_const) :-
+    tmp_program("program t;\nconst xmin = -2.0;\nvar x: real;\nbegin x := xmin; writeln(x) end.\n", F),
+    pppc(['--serial', '--const', 'xmin=-1.5', F], Status, Out, Err),
+    assertion(Status-Err == exit(0)-""),
+    assertion(sub_string(Out, _, _, _, "-1.5")).
+
+test(malformed_const_exit_1, [forall(member(Arg, ['n=', '=5', n, 'n=(']))]) :-
+    pppc(['--const', Arg, 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    format(string(Expected), "--const needs NAME=VALUE with a number, true or false, not ~w", [Arg]),
+    assertion(sub_string(Err, _, _, _, Expected)).
+
 test(wrong_type_const_exit_1) :-
     pppc(['--const', 'n=2.5', 'test/programs/pi.pas'], Status, _, Err),
     assertion(Status == exit(1)),

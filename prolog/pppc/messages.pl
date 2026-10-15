@@ -31,7 +31,7 @@ pppc_message(File, unknown_const(N)) -->
 pppc_message(File, duplicate_const(N)) -->
     [ '~w: constant `~w\' is overridden more than once'-[File, N] ].
 pppc_message(File, bad_const(O)) -->
-    [ '~w: --const needs NAME=VALUE with a number, true or false, not ~p'-[File, O] ].
+    [ '~w: --const needs NAME=VALUE with a number, true or false, not ~w'-[File, O] ].
 pppc_message(_, cost_table_missing(Table)) -->
     [ '~w: cannot open cost table'-[Table] ].
 pppc_message(_, bad_cost_table(Table, syntax_error(L, What))) --> !,

@@ -17,7 +17,7 @@ opt_type(predict, predict, boolean).
 opt_type(prediction, prediction, boolean).
 opt_type(threads, threads, integer).
 opt_type(cost, cost, file).
-opt_type(const, const, term).
+opt_type(const, const, atom).
 opt_type(time, timing, boolean).
 opt_type(dump,   dump,   oneof([tokens, parse, typed, labelled, reach, predict, parallel])).
 opt_type(o,      output, file(write)).
@@ -35,12 +35,29 @@ opt_help(output, "Write the C code to this file (default: standard output)").
 opt_help(help(usage), " [options] input.pas").
 
 main(Argv) :-
-    argv_options(Argv, Positional, Options),
+    argv_options(Argv, Positional, Options0),
     (   Positional = [File]
-    ->  catch(run(File, Options), pppc(E), failed(File, E))
+    ->  catch(( maplist(const_option, Options0, Options),
+                run(File, Options) ),
+              pppc(E), failed(File, E))
     ;   argv_usage(debug),
         halt(1)
     ).
+
+%   const_option(+CLIOption, -Option): --const NAME=VALUE, split at the
+%   first `=` and the value read on its own, so that n=-5 is not read
+%   with Prolog's =- operator. Anything else is pppc(bad_const(Text)).
+const_option(const(Text), const(Name=Value)) :- !,
+    (   sub_atom(Text, B, 1, A, =),
+        B > 0,
+        sub_atom(Text, 0, B, _, Name),
+        sub_atom(Text, _, A, 0, ValueText),
+        catch(term_to_atom(Value, ValueText), error(syntax_error(_), _), fail),
+        ground(Value)
+    ->  true
+    ;   throw(pppc(bad_const(Text)))
+    ).
+const_option(O, O).
 
 run(File, Options) :-
     option(dump(Stage), Options), !,
