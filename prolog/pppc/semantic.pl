@@ -1,5 +1,6 @@
 :- module(pppc_semantic,
           [ check_program/3,            % +Tree, -Typed, -Errors
+            check_program/4,            % +Tree, +Overrides, -Typed, -Errors
             op1_rule/3,                 % ?Op, ?Type, ?ResultType
             op2_rule/4,                 % +Op, ?Left, ?Right, ?ResultType
             builtin_sig/3,              % ?Name, ?ArgTypes, ?ResultType
@@ -41,7 +42,45 @@ fcall/3 or pcall/3, with var arguments wrapped in addr/3.
 %   only meaningful if Errors is [].
 
 check_program(Tree, Typed, Errors) :-
-    phrase(program(Tree, Typed), Errors).
+    check_program(Tree, [], Typed, Errors).
+
+%!  check_program(+Tree, +Overrides:list, -Typed, -Errors:list) is det.
+%
+%   As check_program/3, giving the program-level constants named in
+%   Overrides, a list of Name=Value, the value Value instead of their
+%   declared one. Value must be a literal of the constant's type (an
+%   integer, a float, true or false); a value of the wrong type is a
+%   semantic error at the constant's line. Throws
+%   pppc(unknown_const(Name)) if Name is not a program-level constant,
+%   pppc(bad_const(Override)) if Override is not Name=Literal and
+%   pppc(duplicate_const(Name)) if Name is overridden more than once.
+check_program(Tree, Overrides, Typed, Errors) :-
+    check_overrides(Tree, Overrides),
+    phrase(program(Tree, Overrides, Typed), Errors).
+
+check_overrides(program(_, [_, block(_, [Consts|_])]), Overrides) :-
+    forall(member(O, Overrides), check_override(Consts, O)),
+    findall(N, member(N=_, Overrides), Names),
+    msort(Names, Sorted),
+    (   append(_, [N, N|_], Sorted)
+    ->  throw(pppc(duplicate_const(N)))
+    ;   true
+    ).
+
+check_override(Consts, O) :-
+    (   O = (Name = V), atom(Name), literal_type(V, _)
+    ->  true
+    ;   throw(pppc(bad_const(O)))
+    ),
+    (   memberchk(const_decl(_, [Name, _]), Consts)
+    ->  true
+    ;   throw(pppc(unknown_const(Name)))
+    ).
+
+literal_type(V, integer) :- integer(V).
+literal_type(V, real)    :- float(V).
+literal_type(true, boolean).
+literal_type(false, boolean).
 
 report(L, Msg) --> [pppc(semantic(L, Msg))].
 
@@ -86,29 +125,42 @@ declare(L, Name, Entry, env([S0|Ss], R), env([S|Ss], R)) -->
                  *      PROGRAM & BLOCKS        *
                  *******************************/
 
-program(program(L, [Name, Block]), program(L, [Name, TBlock], void)) -->
+program(program(L, [Name, Block]), Overrides, program(L, [Name, TBlock], void)) -->
     { initial_env(Env0) },
-    block(Block, Env0, TBlock).
+    block(Block, Overrides, Env0, TBlock).
 
-block(block(L, [Consts, Types, Vars, Procs, Body]), Env0,
+%   Overrides is [] for a routine's block: only program-level constants
+%   can be overridden.
+block(block(L, [Consts, Types, Vars, Procs, Body]), Overrides, Env0,
       block(L, [TVars, TProcs, TBody], void)) -->
-    consts(Consts, Env0, Env1),
+    consts(Consts, Overrides, Env0, Env1),
     types(Types, Env1, Env2),
     vars(Vars, Env2, Env3, TVars),
     proc_headers(Procs, Env3, Env4),
     proc_bodies(Procs, Env4, TProcs),
     stmt(Body, Env4, TBody).
 
-consts([], Env, Env) --> [].
-consts([const_decl(L, [Name, E])|Cs], Env0, Env) -->
+consts([], _, Env, Env) --> [].
+consts([const_decl(L, [Name, E])|Cs], Os, Env0, Env) -->
     { const_result(E, Env0, R) },
-    (   { R = ok(T, V) }
-    ->  declare(L, Name, const(T, V), Env0, Env1)
+    (   { R = ok(T, V0) }
+    ->  overridden(L, Name, T, V0, Os, V),
+        declare(L, Name, const(T, V), Env0, Env1)
     ;   { R = eval_error(Why) }
     ->  report(L, constant_error(Name, Why)), { Env1 = Env0 }
     ;   report(L, not_constant(Name)), { Env1 = Env0 }
     ),
-    consts(Cs, Env1, Env).
+    consts(Cs, Os, Env1, Env).
+
+%   overridden(+Line, +Name, +Type, +Declared, +Overrides, -Value)//
+overridden(L, Name, T, V0, Os, V) -->
+    (   { memberchk(Name=V1, Os) }
+    ->  (   { literal_type(V1, T) }
+        ->  { V = V1 }
+        ;   report(L, bad_override(Name, T, V1)), { V = V0 }
+        )
+    ;   { V = V0 }
+    ).
 
 types([], Env, Env) --> [].
 types([type_decl(L, [Name, TE])|Ts], Env0, Env) -->
@@ -263,7 +315,7 @@ proc_body(proc(L, [Name, Params, _, Block]), Env0, TProc) -->
     ;   { Nested = [proc(NL, [NN|_])|_] }, report(NL, nested_routine(NN))
     ),
     { Block = block(BL, [Cs, Ts, Vs, _, Body]) },
-    block(block(BL, [Cs, Ts, Vs, [], Body]), Env1, TBlock),
+    block(block(BL, [Cs, Ts, Vs, [], Body]), [], Env1, TBlock),
     { TProc = proc(L, [Name, TParams, R, TBlock], void) }.
 
 typed_params([], _, Env, Env, []) --> [].

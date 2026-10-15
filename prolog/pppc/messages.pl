@@ -26,6 +26,12 @@ pppc_message(File, internal(Pass, Reason)) -->
     [ '~w: internal compiler error in pass ~w: ~p'-[File, Pass, Reason] ].
 pppc_message(File, bad_threads(N)) -->
     [ '~w: the number of threads must be a positive integer, not ~p'-[File, N] ].
+pppc_message(File, unknown_const(N)) -->
+    [ '~w: no program constant `~w\''-[File, N] ].
+pppc_message(File, duplicate_const(N)) -->
+    [ '~w: constant `~w\' is overridden more than once'-[File, N] ].
+pppc_message(File, bad_const(O)) -->
+    [ '~w: --const needs NAME=VALUE with a number, true or false, not ~p'-[File, O] ].
 pppc_message(_, cost_table_missing(Table)) -->
     [ '~w: cannot open cost table'-[Table] ].
 pppc_message(_, bad_cost_table(Table, syntax_error(L, What))) --> !,
@@ -84,6 +90,7 @@ semantic(bad_arguments(N))      --> [ 'wrong argument types for `~w'''-[N] ].
 semantic(arg_count(N, E, G))    --> [ '`~w'' takes ~d argument(s), ~d given'-[N, E, G] ].
 semantic(arg_mismatch(P, A))    --> [ 'argument of type ~p given for parameter of type ~p'-[A, P] ].
 semantic(constant_error(N, W))  --> [ 'cannot compute constant `~w'': '-[N] ], evaluation(W).
+semantic(bad_override(N, T, V)) --> [ 'cannot override constant `~w'' (~w) with ~p'-[N, T, V] ].
 
 evaluation(zero_divisor)   --> !, [ 'division by zero' ].
 evaluation(float_overflow) --> !, [ 'overflow' ].

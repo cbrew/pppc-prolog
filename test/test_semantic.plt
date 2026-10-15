@@ -127,4 +127,54 @@ test(constant_division_by_zero) :-
                         pppc(semantic(2, constant_error(b, zero_divisor))),
                         pppc(semantic(2, constant_error(c, float_overflow))) ]).
 
+                 /*******************************
+                 *     CONSTANT OVERRIDES       *
+                 *******************************/
+
+check(Text, Overrides, Typed, Errors) :-
+    string_codes(Text, Cs), tokenize(Cs, Ts), parse_program(Ts, P),
+    check_program(P, Overrides, Typed, Errors).
+
+%   Later constants and array bounds see the overridden value.
+test(override_replaces_value) :-
+    check("program t;\nconst n = 10; m = n * 2;\nvar a: array[1..n] of real; k: integer;\n\c
+           begin k := m end.", [n=50], T, Errs),
+    assertion(Errs == []),
+    T = program(_, [t, block(_, [[var_decl(_, [[a], AT], _)|_], _,
+                                  compound(_, [[assign(_, [_, V], _)]], _)], _)], _),
+    assertion(AT == array(1, 50, real)),
+    assertion(V == iconst(4, [100], integer)).
+
+test(override_real_and_boolean) :-
+    check("program t;\nconst eps = 1.0e-10; trace = false;\nvar x: real; b: boolean;\n\c
+           begin x := eps; b := trace end.", [eps=0.5, trace=true], T, Errs),
+    assertion(Errs == []),
+    T = program(_, [t, block(_, [_, _, compound(_, [[assign(_, [_, X], _),
+                                                      assign(_, [_, B], _)]], _)], _)], _),
+    assertion(X == fconst(4, [0.5], real)),
+    assertion(B == bconst(4, [true], boolean)).
+
+test(override_wrong_type) :-
+    check("program t;\nconst n = 10;\nbegin end.", [n=2.5], _, Errs),
+    assertion(Errs == [pppc(semantic(2, bad_override(n, integer, 2.5)))]).
+
+test(override_unknown, throws(pppc(unknown_const(m)))) :-
+    check("program t;\nconst n = 10;\nbegin end.", [m=1], _, _).
+
+%   Only program-level constants can be overridden.
+test(override_routine_constant, throws(pppc(unknown_const(k)))) :-
+    check("program t;\nprocedure p;\nconst k = 1;\nbegin end;\nbegin end.", [k=2], _, _).
+
+test(override_not_literal, throws(pppc(bad_const(n=x)))) :-
+    check("program t;\nconst n = 10;\nbegin end.", [n=x], _, _).
+
+test(override_twice, throws(pppc(duplicate_const(n)))) :-
+    check("program t;\nconst n = 10;\nbegin end.", [n=1, n=2], _, _).
+
+%   An override can make a declaration invalid; that is reported as if
+%   the program had been written that way.
+test(override_empties_array) :-
+    check("program t;\nconst n = 10;\nvar a: array[1..n] of real;\nbegin end.", [n=0], _, Errs),
+    assertion(Errs == [pppc(semantic(3, bad_bounds))]).
+
 :- end_tests(semantic).

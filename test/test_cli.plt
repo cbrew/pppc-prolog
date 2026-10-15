@@ -123,6 +123,30 @@ test(bad_threads_exit_1) :-
     assertion(Status == exit(1)),
     assertion(sub_string(Err, _, _, _, "must be a positive integer, not 0")).
 
+%   At n = 50 the pi loop is too short to be worth a parallel region.
+test(const_override_reaches_prediction) :-
+    pppc(['--report', '--const', 'n=50', 'test/programs/pi.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, 0, _, _, "program 9 serial unprofitable(")).
+
+test(const_override_compiles) :-
+    pppc(['--serial', '--const', 'n=123457', 'test/programs/pi.pas'], exit(0), Out, _),
+    assertion(sub_string(Out, _, _, _, "123457")).
+
+test(unknown_const_exit_1) :-
+    pppc(['--const', 'm=5', 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "pi.pas: no program constant `m'")).
+
+test(bad_const_exit_1) :-
+    pppc(['--const', 'n=x', 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "--const needs NAME=VALUE")).
+
+test(wrong_type_const_exit_1) :-
+    pppc(['--const', 'n=2.5', 'test/programs/pi.pas'], Status, _, Err),
+    assertion(Status == exit(1)),
+    assertion(sub_string(Err, _, _, _, "pi.pas:3: cannot override constant `n' (integer) with 2.5")).
+
 test(calibrate_app_writes_table) :-
     tmp_file_stream(text, File, S), close(S),
     process_create(path(swipl), [pppc_calibrate, '--max-threads', '1', '--repeat', '1', '-o', File],

@@ -29,7 +29,7 @@ error_term(E) :-
                 not_an_array, not_a_record, no_such_field(f), type_clash(-, boolean),
                 type_clash(+, real, boolean), bad_arguments(sqrt), arg_count(p, 1, 2),
                 arg_mismatch(integer, real), constant_error(z, zero_divisor),
-                constant_error(z, float_overflow) ]).
+                constant_error(z, float_overflow), bad_override(n, integer, 2.5) ]).
 
 test(bad_number) :-
     render(pppc('a.pas', bad_number(4, '1e400')), T),
@@ -58,5 +58,21 @@ test(bad_threads) :-
 test(calibrate) :-
     render(pppc(pppc_calibrate, calibrate(no_compiler)), T),
     assertion(T == "pppc_calibrate: cannot run gcc\n").
+
+test(bad_override) :-
+    render(pppc('a.pas', semantic(2, bad_override(n, integer, 2.5))), T),
+    assertion(T == "a.pas:2: cannot override constant `n' (integer) with 2.5\n").
+
+test(unknown_const) :-
+    render(pppc('a.pas', unknown_const(m)), T),
+    assertion(T == "a.pas: no program constant `m'\n").
+
+test(bad_const) :-
+    render(pppc('a.pas', bad_const(n=x)), T),
+    assertion(T == "a.pas: --const needs NAME=VALUE with a number, true or false, not n=x\n").
+
+test(duplicate_const) :-
+    render(pppc('a.pas', duplicate_const(n)), T),
+    assertion(T == "a.pas: constant `n' is overridden more than once\n").
 
 :- end_tests(messages).

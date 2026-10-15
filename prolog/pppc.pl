@@ -34,12 +34,17 @@ pppc_report/3 and pppc_predict/3:
   - cost(File)  the cost table (default: the shipped table);
   - prediction(Bool)  if `false`, parallelize every eligible loop
     without run time prediction, as Phase 1 did (pppc_compile/3 and
-    pppc_report/3; threads and cost are then not used).
+    pppc_report/3; threads and cost are then not used);
+  - const(Name=Value)  give the program-level constant Name the value
+    Value, a literal of its type, instead of its declared one (may be
+    repeated; also accepted by pppc_stage/4).
 
 Errors in the source are thrown as pppc(Error) where Error is
 no_source, syntax(Line, Expected, Found), bad_number(Line, Text) or
 semantic_errors(List); errors in the options as bad_threads(N),
-cost_table_missing(File) or bad_cost_table(File, Culprit); a failing or
+unknown_const(Name), bad_const(Override), duplicate_const(Name),
+cost_table_missing(File) or
+bad_cost_table(File, Culprit); a failing or
 crashing pass throws pppc(internal(Pass, Reason)).
 */
 
@@ -50,7 +55,7 @@ crashing pass throws pppc(internal(Pass, Reason)).
 %
 %     - serial(Bool)  if `true`, skip the parallelizer.
 pppc_compile(File, Options, CText) :-
-    front_end(File, Typed),
+    front_end(File, Options, Typed),
     (   option(serial(true), Options)
     ->  Program = Typed
     ;   parallelized(Typed, Options, Program)
@@ -69,8 +74,9 @@ parallelized(Typed, Options, Program) :-
 %
 %   Run the compiler up to Stage and return its output. Stage is one
 %   of tokens, parse, typed, labelled, reach, predict, parallel. For
-%   labelled and reach, Result is a list Routine-Value. predict and
-%   parallel take the options of pppc_compile/3 (default: none).
+%   labelled and reach, Result is a list Routine-Value. The stages from
+%   typed on take const(Name=Value) options, and predict and parallel
+%   the other options of pppc_compile/3 (default: none).
 pppc_stage(File, Stage, Result) :-
     pppc_stage(File, Stage, [], Result).
 
@@ -80,18 +86,18 @@ pppc_stage(File, tokens, _, Ts) :- !,
 pppc_stage(File, parse, _, Tree) :- !,
     pppc_stage(File, tokens, Ts),
     pass(parser, parse_program(Ts, Tree)).
-pppc_stage(File, typed, _, Typed) :- !,
-    front_end(File, Typed).
-pppc_stage(File, labelled, _, Pairs) :- !,
-    analysis(File, Rs),
+pppc_stage(File, typed, Options, Typed) :- !,
+    front_end(File, Options, Typed).
+pppc_stage(File, labelled, Options, Pairs) :- !,
+    analysis(File, Options, Rs),
     findall(N-L, member(routine(N, L, _, _), Rs), Pairs).
-pppc_stage(File, reach, _, Pairs) :- !,
-    analysis(File, Rs),
+pppc_stage(File, reach, Options, Pairs) :- !,
+    analysis(File, Options, Rs),
     findall(N-R, member(routine(N, _, _, R), Rs), Pairs).
 pppc_stage(File, predict, Options, Prediction) :- !,
     pppc_predict(File, Options, Prediction).
 pppc_stage(File, parallel, Options, Program) :- !,
-    front_end(File, Typed),
+    front_end(File, Options, Typed),
     parallelized(Typed, Options, Program).
 pppc_stage(_, Stage, _, _) :-
     domain_error(pppc_stage, Stage).
@@ -111,8 +117,7 @@ pppc_report(File, Lines) :-
 
 pppc_report(File, Options, Lines) :-
     (   option(prediction(false), Options)
-    ->  front_end(File, Typed),
-        pass(parallelizer, analyse_program(Typed, Rs))
+    ->  analysis(File, Options, Rs)
     ;   decided(File, Options, Rs, _)
     ),
     findall(Line, ( member(routine(N, _, Loops, _), Rs),
@@ -143,20 +148,23 @@ pppc_predict(File, Options, Prediction) :-
                  *          PIPELINE            *
                  *******************************/
 
-front_end(File, Typed) :-
+%   front_end(+File, +Options, -Typed): parse and check File, with the
+%   const(Name=Value) overrides in Options.
+front_end(File, Options, Typed) :-
     pppc_stage(File, parse, Tree),
-    pass(semantic, check_program(Tree, Typed, Errors)),
+    findall(O, member(const(O), Options), Overrides),
+    pass(semantic, check_program(Tree, Overrides, Typed, Errors)),
     (   Errors == []
     ->  true
     ;   throw(pppc(semantic_errors(Errors)))
     ).
 
-analysis(File, Routines) :-
-    front_end(File, Typed),
+analysis(File, Options, Routines) :-
+    front_end(File, Options, Typed),
     pass(parallelizer, analyse_program(Typed, Routines)).
 
 decided(File, Options, Routines, Prediction) :-
-    front_end(File, Typed),
+    front_end(File, Options, Typed),
     prediction_setup(Options, Table, N),
     pass(parallelizer, analyse_program(Typed, Routines0)),
     pass(predict, decide(Routines0, Table, N, Routines, Prediction)).
