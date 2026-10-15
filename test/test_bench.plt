@@ -113,6 +113,18 @@ test(notes_kept) :-
     notes(F, Notes),
     assertion(Notes == "SMT flattens above 6.\n").
 
+%   The rest of the marker's line is not part of the notes, whatever it
+%   holds (a CR from CRLF line endings, trailing spaces).
+test(notes_kept_crlf) :-
+    sizes_file("# Old\r\n\r\n<!-- notes -->\r\nKeep me.\r\n", F),
+    notes(F, Notes),
+    assertion(Notes == "Keep me.\r\n").
+
+test(notes_marker_trailing_space) :-
+    sizes_file("# Old\n<!-- notes -->  \nKeep me.\n", F),
+    notes(F, Notes),
+    assertion(Notes == "Keep me.\n").
+
 test(no_notes) :-
     notes('no/such/results.md', N1),
     assertion(N1 == "\n"),
@@ -145,6 +157,18 @@ test(app_keeps_notes) :-
     read_file_to_string(Out, Text, []),
     assertion(sub_string(Text, _, _, _, "## Speedups (Table 4.1)")),
     assertion(sub_string(Text, _, _, 0, "<!-- notes -->\nKeep me.\n")).
+
+%   Replacing a file that has text but no marker loses that text: say so.
+test(app_warns_without_marker) :-
+    tiny_sizes(Sizes),
+    sizes_file("Hand-written results\n", Out),
+    process_create(path(swipl), [pppc_bench, '--program', pi, '--threads', '1',
+                                 '--repeat', '1', '--sizes', Sizes, '-o', Out],
+                   [stderr(pipe(E)), process(Pid)]),
+    read_string(E, _, Err), close(E),
+    process_wait(Pid, Status),
+    assertion(Status == exit(0)),
+    assertion(sub_string(Err, _, _, _, "has no notes marker")).
 
 test(app_bad_threads) :-
     process_create(path(swipl), [pppc_bench, '--threads', '1,x'],

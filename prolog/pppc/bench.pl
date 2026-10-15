@@ -418,13 +418,17 @@ us_cell(S, Secs) :- Us is Secs * 1.0e6, format(S, " ~1f |", [Us]).
 
 %!  notes(+File, -Notes:string) is det.
 %
-%   The text after the notes marker in File, or "\n" if File does not
-%   exist or has no marker.
+%   The text after the line holding the notes marker in File (the rest
+%   of that line, such as a CR or trailing spaces, is dropped), or "\n"
+%   if File does not exist or has no marker.
 notes(File, Notes) :-
     (   exists_file(File),
         read_file_to_string(File, Text, []),
-        once(sub_string(Text, B, L, _, "<!-- notes -->\n"))
-    ->  Start is B + L,
-        sub_string(Text, Start, _, 0, Notes)
+        once(sub_string(Text, B, L, _, "<!-- notes -->")),
+        End is B + L,
+        sub_string(Text, End, _, 0, Rest),
+        once(sub_string(Rest, NL, 1, _, "\n"))
+    ->  Start is NL + 1,
+        sub_string(Rest, Start, _, 0, Notes)
     ;   Notes = "\n"
     ).

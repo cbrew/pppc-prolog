@@ -73,10 +73,23 @@ thread_list(Text, Ps) :-
 
 output(Options, Results) :-
     (   option(output(File), Options)
-    ->  notes(File, Notes),
+    ->  warn_unmarked(File),
+        notes(File, Notes),
         with_output_to(string(Text), write_results(current_output, Results, Notes)),
         setup_call_cleanup(open(File, write, S), write(S, Text), close(S))
     ;   write_results(current_output, Results, "\n")
+    ).
+
+%   warn_unmarked(+File): File has text but no notes marker, so all of
+%   it is about to be replaced.
+warn_unmarked(File) :-
+    (   exists_file(File),
+        read_file_to_string(File, Text, []),
+        split_string(Text, "", " \t\r\n", [Trimmed]),
+        Trimmed \== "",
+        \+ sub_string(Text, _, _, _, "<!-- notes -->")
+    ->  print_message(warning, pppc(pppc_bench, bench(no_notes_marker(File))))
+    ;   true
     ).
 
 failed(internal(Pass, Reason)) :- !,

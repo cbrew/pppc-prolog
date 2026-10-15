@@ -69,6 +69,8 @@ bench(bad_sizes(F, cannot_open)) --> !, [ '~w: cannot open sizes file'-[F] ].
 bench(bad_sizes(F, syntax_error(W))) --> !, [ '~w: syntax error in sizes file: ~w'-[F, W] ].
 bench(bad_sizes(F, duplicate(N))) --> !, [ '~w: more than one size for ~w'-[F, N] ].
 bench(bad_sizes(F, T)) --> !, [ '~w: invalid size entry ~q'-[F, T] ].
+bench(no_notes_marker(F)) --> !,
+    [ '~w has no notes marker; all of its text is replaced'-[F] ].
 bench(bad_threads(T)) --> !,
     [ '--threads needs positive integers separated by commas, not ~w'-[T] ].
 bench(Why) --> [ 'bench failed: ~p'-[Why] ].
