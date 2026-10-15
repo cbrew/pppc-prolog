@@ -234,7 +234,8 @@ The Prolog entry point is `bench(+Options, -Results)` plus
      at every P, as in the paper;
    - `all`: `prediction(false)`, every candidate loop parallel.
 3. **Run** `serial` K times, and `parallel` and `all` K times at each P,
-   with `OMP_NUM_THREADS=P` and `OMP_PROC_BIND=close`. Whole-program
+   with `OMP_NUM_THREADS=P`, `OMP_PLACES=cores` and
+   `OMP_PROC_BIND=close`. Whole-program
    wall time is taken around `process_create/3` and `process_wait/2`;
    per-loop times come from the `pppc_time` lines on stderr; stdout is
    discarded.
@@ -339,3 +340,8 @@ not an automated test.
    can record.
 2. **Sizes recorded** in section 5.1, measured with the Phase 2
    compiler on scratch copies.
+3. **Threads are bound one per core.** `OMP_PROC_BIND=close` alone uses
+   the default places, one per hardware thread, so threads 0 and 1 share
+   a physical core: in the prototype run, pi had a speedup of 0.99 at
+   P = 2 and mm 0.52. With `OMP_PLACES=cores` as well, P = 2 is 2.0x for
+   pi, the same as unbound runs, and threads stay pinned.
