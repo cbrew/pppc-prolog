@@ -3,7 +3,8 @@
 - Date: 2026-10-15 05:06:05
 - CPU: AMD Ryzen 5 5600G with Radeon Graphics
 - gcc: 16.2.0 (-O2 -fopenmp)
-- Cost table: /home/cbrew/working/pascal_compiler/prolog/pppc/cost/default.pl
+- Cost table: prolog/pppc/cost/default.pl
+- Threads: 1, 2, 3, 4, 5, 6, 7, 8, 12
 - Each time is the median of 3 runs
 
 | Program | Sizes |

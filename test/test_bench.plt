@@ -79,6 +79,7 @@ expected_markdown(
 - CPU: Test CPU
 - gcc: 16.2.0 (-O2 -fopenmp)
 - Cost table: t.pl
+- Threads: 1, 2, 4
 - Each time is the median of 3 runs
 
 | Program | Sizes |
@@ -107,6 +108,19 @@ Verdict right for 1 of 2 candidate loops at P=4 (1 not run).
 <!-- notes -->
 My notes.
 ").
+
+%   A cost table inside the working directory is named relative to it,
+%   so the committed results hold no machine-specific path; one outside
+%   it keeps its absolute path.
+test(cost_table_path_relative) :-
+    canned(R0),
+    absolute_file_name('prolog/pppc/cost/default.pl', Abs),
+    R = R0.put(cost, Abs),
+    with_output_to(string(Text), write_results(current_output, R, "\n")),
+    assertion(sub_string(Text, _, _, _, "- Cost table: prolog/pppc/cost/default.pl\n")),
+    R1 = R0.put(cost, '/elsewhere/t.pl'),
+    with_output_to(string(Text1), write_results(current_output, R1, "\n")),
+    assertion(sub_string(Text1, _, _, _, "- Cost table: /elsewhere/t.pl\n")).
 
 test(notes_kept) :-
     sizes_file("# Old results\n\n<!-- notes -->\nSMT flattens above 6.\n", F),

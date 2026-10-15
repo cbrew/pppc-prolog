@@ -347,8 +347,10 @@ write_results(S, Results, Notes) :-
     format(S, "# PPPC benchmark results~n~n", []),
     format(S, "- Date: ~w~n- CPU: ~w~n- gcc: ~w (-O2 -fopenmp)~n",
            [Results.date, Results.cpu, Results.gcc]),
-    format(S, "- Cost table: ~w~n- Each time is the median of ~d runs~n~n",
-           [Results.cost, Results.repeat]),
+    shown_path(Results.cost, Cost),
+    atomic_list_concat(Results.threads, ', ', Threads),
+    format(S, "- Cost table: ~w~n- Threads: ~w~n- Each time is the median of ~d runs~n~n",
+           [Cost, Threads, Results.repeat]),
     format(S, "| Program | Sizes |~n|---|---|~n", []),
     forall(member(Prog, Results.programs),
            ( sizes_text(Prog.sizes, T),
@@ -358,6 +360,18 @@ write_results(S, Results, Notes) :-
     forall(member(P, LoopPs), write_loops(S, Results, P)),
     format(S, "~n<!-- notes -->~n", []),
     format(S, "~s", [Notes]).
+
+%   shown_path(+File, -Shown): File relative to the working directory
+%   if it is inside it, so committed results hold no machine-specific
+%   path; otherwise File as given.
+shown_path(File, Shown) :-
+    (   is_absolute_file_name(File),
+        working_directory(Dir, Dir),
+        atom_concat(Dir, Rel, File),
+        Rel \== ''
+    ->  Shown = Rel
+    ;   Shown = File
+    ).
 
 sizes_text(Os, Text) :-
     maplist([N=V, T]>>format(string(T), "~w=~w", [N, V]), Os, Ts),

@@ -75,4 +75,24 @@ test(duplicate_const) :-
     render(pppc('a.pas', duplicate_const(n)), T),
     assertion(T == "a.pas: constant `n' is overridden more than once\n").
 
+test(every_bench_error_has_a_message, [forall(bench_error(E))]) :-
+    render(pppc(pppc_bench, bench(E)), T),
+    assertion(sub_string(T, 0, _, _, "pppc_bench: ")),
+    assertion(\+ sub_string(T, _, _, _, "bench failed")).
+
+bench_error(E) :-
+    member(E, [ no_gcc, build_failed(pi, serial, "error: x"), run_failed(pi, all, 4, exit(1)),
+                bad_timing("hello"), missing_size(pi), bad_sizes('s.pl', cannot_open),
+                bad_sizes('s.pl', syntax_error(operator_expected)),
+                bad_sizes('s.pl', duplicate(pi)), bad_sizes('s.pl', size(pi, [n=x])),
+                bad_threads('1,x'), no_notes_marker('r.md') ]).
+
+test(bench_messages) :-
+    render(pppc(pppc_bench, bench(missing_size(pi))), T1),
+    assertion(T1 == "pppc_bench: no size given for benchmark pi\n"),
+    render(pppc(pppc_bench, bench(bad_sizes('s.pl', duplicate(pi)))), T2),
+    assertion(T2 == "pppc_bench: s.pl: more than one size for pi\n"),
+    render(pppc(pppc_bench, bench(run_failed(pi, all, 4, exit(1)))), T3),
+    assertion(T3 == "pppc_bench: the all build of pi failed on 4 threads: exit(1)\n").
+
 :- end_tests(messages).
