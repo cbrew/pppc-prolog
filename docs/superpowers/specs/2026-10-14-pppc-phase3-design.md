@@ -34,7 +34,8 @@ document from Prolog.
 2. `make bench` writes `bench/results.md` for all seven benchmarks on
    the development machine in under 10 minutes; the committed file is
    that output.
-3. Each benchmark's serial run at its bench size takes 0.5–5 s.
+3. Each benchmark's serial run at its bench size takes 0.5–5 s, except
+   `linear` and `cg`, which take at least 0.1 s (section 5.1).
 4. The results say whether the `mandel` line 29 loop (the summing loop
    that the recalibrated table made parallel by a 7% predicted margin)
    is faster in parallel at 4 threads.
@@ -175,12 +176,26 @@ interesting loop (`mandel` line 29) takes about 1 µs.
 `bench/sizes.pl` holds one fact per benchmark:
 
 ```prolog
-size(mm, [n=1000]).
+size(mm, [n=1400]).
 ```
 
 The key is the program's base name in `test/programs`; the list gives
 the constant overrides. Sizes are chosen so the serial run takes
-0.5–5 s on the development machine (1–3 s aimed for). The file is read
+0.5–5 s on the development machine (1–3 s aimed for), except `linear`
+and `cg` (see criterion 3). The sizes, with serial times measured
+while planning:
+
+| Program | Overrides | Serial |
+|---|---|---|
+| pi | n = 2000000000 | 2.1 s |
+| montepi | n = 300000000 | 1.9 s |
+| mandel | nx = 2400, ny = 1800 | 1.1 s |
+| linear | n = 5000 | 0.24 s |
+| nbody | n = 1500 | 1.6 s |
+| mm | n = 1400 | 1.3 s |
+| cg | n = 5000 | 0.20 s |
+
+The file is read
 with `read_term/3`; a term that is not `size(Atom, List)` with
 `Name=Value` elements, or a duplicate key, gives
 `pppc(bench(bad_sizes(File, Culprit)))`.
@@ -312,3 +327,15 @@ Unchanged.
 
 Run on the idle development machine, and the output committed. It is
 not an automated test.
+
+## 8. Revisions after review (2026-10-15)
+
+1. **linear and cg run shorter.** Both matrices are diagonally
+   dominant, so Jacobi and CG converge in 4–6 iterations at any n, and
+   time grows only with n². At n = 5000 (a 200 MB matrix) they take
+   about 0.2 s. Rather than change the programs, criterion 3 allows
+   them at least 0.1 s; medians of K runs still resolve their speedups.
+   At this size they are bound by memory bandwidth, which the notes
+   can record.
+2. **Sizes recorded** in section 5.1, measured with the Phase 2
+   compiler on scratch copies.
