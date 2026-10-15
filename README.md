@@ -57,3 +57,9 @@ swipl pppc --const n=2000 --time test/programs/mm.pas -o mm.c  # resize, time lo
 - Phase 2: the cost model and run time prediction.
 - Phase 3: measuring speedups against the predictions.
 - Phase 4 (planned): replicated SPMD regions.
+
+## License
+
+Copyright 2026 Chris Brew. Licensed under the Apache License, Version
+2.0; see [LICENSE](LICENSE). The license covers this code only, not
+Gabber's paper.
