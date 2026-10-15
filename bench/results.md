@@ -102,8 +102,9 @@ Verdict right for 12 of 21 candidate loops at P=12.
 Run conditions: the desktop was not fully idle. Another job,
 `claude-transcript-archive`, kept one core busy throughout (load
 average 2–3.5), so the P=12 column, which needs every hardware thread,
-is pessimistic. The P ≤ 6 columns agree with an earlier idle run of the
-same harness to within a few percent.
+is pessimistic. The P ≤ 6 columns agree to within a few percent with an
+earlier idle run of the same harness, made while planning (not
+committed).
 
 1. **mandel line 29 (criterion 4): not faster in parallel.** The
    summing loop over 1800 rows takes 2.4 µs serially and 11.8 µs on 4
@@ -111,24 +112,33 @@ same harness to within a few percent.
    job). The prediction (4.0 µs serial, 1.9 µs parallel) assumed the
    table's fork/join cost, `overhead(fork_join, 4, 3720)` × 2.46e-10 s
    = 0.92 µs. That is the cost of back-to-back regions with the
-   threads still spinning, which is what the calibration times. Here
-   the region follows a serial stretch, the threads have gone to sleep,
-   and waking them costs about ten times as much.
+   threads still spinning, which is what the calibration times. The
+   measured region costs about ten times as much. A likely cause (not
+   measured): the region starts right after the parallel line 8 loop,
+   whose static schedule leaves most threads idle at its closing
+   barrier for a long time, because the expensive rows are in the
+   middle of the image. Waiting that long, they stop spinning and
+   sleep, and line 29 has to wake them. Moving data between cores is
+   less likely: with the same range and schedule, each thread sums the
+   rows it wrote itself.
 
 2. **Verdicts: 12 of 21 right at P=4 and at P=12.** Every candidate
    loop was predicted parallel. All the large loops (actual serial time
    above 1 ms) are faster in parallel, as predicted. All nine wrong
    verdicts at P=4 are small loops (2–70 µs serial) whose isolated
    parallel region costs more than the loop: mandel 29, linear 34,
-   nbody 9, 42 and 53, cg 21, 34, 38 and 46 (at P=12, mm 23 joins them
-   and cg 38 leaves, both within a microsecond). nbody line 9 is the program's first
-   loop, so its parallel time (199 µs at P=4) also includes creating
+   nbody 9, 42 and 53, cg 21, 34, 38 and 46. At P=12, cg 38 leaves
+   them (5.5 µs serial, 4.8 µs parallel; at P=4 it was 5.6 µs, a
+   difference within the noise) and mm 23 joins them (11.8 µs serial,
+   29.1 µs parallel; at P=4 it was 10.5 µs). nbody line 9 is the
+   program's first loop, so its parallel time (199 µs at P=4) also includes creating
    the OpenMP thread pool.
 
 3. **SMT.** The 5600G has 6 cores with 2 hardware threads each, and the
-   bench binds one thread per core while there are cores left. Compute-
-   bound programs scale almost linearly to 6 threads (pi 5.80, nbody
-   5.38, mm 4.92 at P=6), then drop at 7 and 8 (pi 3.45 and 3.90, mm
+   bench binds one thread per core while there are cores left. pi and
+   nbody scale almost linearly to 6 threads (5.80 and 5.38 at P=6); mm
+   is uneven at low P (1.66 at P=2, 2.14 at P=3) but reaches 4.92. All
+   three drop at 7 and 8 (pi 3.45 and 3.90, mm
    1.89 and 2.18): one core runs two threads, and with a static
    schedule the whole loop waits for it. P=12 recovers partly (pi
    5.71). The cost model treats all 12 hardware threads as cores, so it
@@ -144,9 +154,10 @@ same harness to within a few percent.
 5. **Absolute times.** The model's serial times are high by a large
    factor for loops of cheap operations: pi line 9 is predicted at
    16.3 s and takes 2.2 s (7.4x); mm line 14 19.6 s against 1.29 s
-   (15x); linear 21 148 ms against 19 ms. It costs each operation's
-   latency in isolation, while the CPU overlaps independent operations
-   and gcc keeps values in registers. Where the work is dominated by
+   (15x); linear 21 148 ms against 19 ms. The likely reason (not
+   checked against the generated code): the model costs each
+   operation's latency in isolation, while the CPU overlaps independent
+   operations and gcc keeps values in registers. Where the work is dominated by
    long dependency chains it is close: mandel line 8, 1.21 s predicted
    against 1.13 s. The ratios that decide verdicts are much closer than
    the absolute times: the large loops are predicted at 4.0x on 4
@@ -154,10 +165,11 @@ same harness to within a few percent.
    (mandel 8, load imbalance).
 
 6. **montepi is faster parallel even on one thread** (1.66 at P=1, and
-   6.34x for its loop at P=4). In the serial build x, y and hits are
-   file-scope statics stored to memory every iteration; in the parallel
-   build they are private copies or a reduction variable inside the
-   outlined loop function, which gcc keeps in registers.
+   6.34x for its loop at P=4). A likely reason (not checked against the
+   generated code): in the serial build x, y and hits are file-scope
+   statics stored to memory every iteration; in the parallel build
+   they are private copies or a reduction variable inside the outlined
+   loop function, which gcc can keep in registers.
 
 7. **For Phase 4 and later.** Small loops dominate the wrong verdicts.
    The cost model needs a fork/join cost measured for isolated regions
