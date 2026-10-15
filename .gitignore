@@ -6,3 +6,5 @@ buildenv.sh
 status.db
 /build/
 /doc/
+# The paper (Gabber 1990) is copyrighted; keep a local copy only.
+/pascal-compiler-prolog.pdf
