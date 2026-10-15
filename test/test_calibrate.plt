@@ -71,7 +71,10 @@ test(normalise) :-
                        cost(write_item, 2), default_trips(25),
                        overhead(fork_join, 1, 5000), overhead(reduction, 1, 500),
                        overhead(fork_join, 2, 8000), overhead(reduction, 2, 1000) ]),
-           assertion(memberchk(F, Facts))).
+           assertion(memberchk(F, Facts))),
+    % the canned integer addition takes 1 ns
+    memberchk(unit_seconds(S), Facts),
+    assertion(abs(S - 1.0e-9) < 1.0e-15).
 
 test(reduction_from_paired_blocks) :-
     % each block times a plain region and a reduction region back to

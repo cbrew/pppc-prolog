@@ -55,5 +55,6 @@ cost(param, 1).
 cost(itor, 1).
 cost(write_item, 1).
 default_trips(25).
+unit_seconds(1.0e-9).
 overhead(fork_join, 1, 0).
 overhead(reduction, 1, 0).

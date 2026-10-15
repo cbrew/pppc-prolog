@@ -29,13 +29,24 @@ test(unit_table_loads) :-
     load_cost_table(F, T),
     op2_cost(T, +, real, real, C1), assertion(C1 == 1),
     unit_cost(T, write_item, C2), assertion(C2 == 1),
-    trips(T, N), assertion(N == 25).
+    trips(T, N), assertion(N == 25),
+    unit_seconds(T, S), assertion(S == 1.0e-9).
 
 test(default_table_loads) :-
     default_cost_file(F),
     load_cost_table(F, T),
     unit_cost(T, loop, C),
-    assertion(integer(C)).
+    assertion(integer(C)),
+    unit_seconds(T, S),
+    assertion((float(S), S > 0)).
+
+test(missing_unit_seconds, throws(pppc(bad_cost_table(_, missing(unit_seconds))))) :-
+    variant("unit_seconds", "", F),
+    load_cost_table(F, _).
+
+test(unit_seconds_positive, throws(pppc(bad_cost_table(_, unit_seconds(0))))) :-
+    variant("unit_seconds", "unit_seconds(0).", F),
+    load_cost_table(F, _).
 
 %   The semantic pass's typing rules test membership rather than
 %   enumerate, so the check runs over every operator of the language

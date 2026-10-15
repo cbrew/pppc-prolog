@@ -2,4 +2,4 @@ program 10 parallel a:distributed b:distributed i:index j:local x:distributed
 program 12 nested 10
 program 21 parallel a:read_only b:read_only error:associative(max) i:index j:local new_x:distributed sum:local x:read_only
 program 24 nested 21
-program 34 serial unprofitable(2750,4380)
+program 34 serial unprofitable(2750,4414)

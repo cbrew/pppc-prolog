@@ -1,6 +1,6 @@
 /*  PPPC cost table, measured by pppc_calibrate
 
-    Date:    2026-10-14 12:53:50
+    Date:    2026-10-15 04:33:40
     CPU:     AMD Ryzen 5 5600G with Radeon Graphics
     gcc:     16.2.0 (-O2 -fopenmp)
     Options: [blocks(51),iterations(1000000),max_threads(12),repeat(5),reps(200)]
@@ -58,21 +58,22 @@ cost(store, 1).
 cost(if, 1).
 cost(call, 4).
 cost(param, 1).
-cost(write_item, 142).
+cost(write_item, 148).
 default_trips(25).
-overhead(fork_join, 1, 1932).
-overhead(fork_join, 2, 3500).
-overhead(fork_join, 3, 3604).
-overhead(fork_join, 4, 3686).
-overhead(fork_join, 5, 3771).
-overhead(fork_join, 6, 3904).
-overhead(fork_join, 7, 4807).
-overhead(fork_join, 8, 4897).
-overhead(fork_join, 9, 5086).
-overhead(fork_join, 10, 5295).
-overhead(fork_join, 11, 5687).
-overhead(fork_join, 12, 6065).
-overhead(reduction, 1, 17).
+unit_seconds(2.4648001997500007e-10).
+overhead(fork_join, 1, 1906).
+overhead(fork_join, 2, 3502).
+overhead(fork_join, 3, 3637).
+overhead(fork_join, 4, 3720).
+overhead(fork_join, 5, 3871).
+overhead(fork_join, 6, 4195).
+overhead(fork_join, 7, 4777).
+overhead(fork_join, 8, 4891).
+overhead(fork_join, 9, 5096).
+overhead(fork_join, 10, 5350).
+overhead(fork_join, 11, 5846).
+overhead(fork_join, 12, 6626).
+overhead(reduction, 1, 1).
 overhead(reduction, 2, 1).
 overhead(reduction, 3, 1).
 overhead(reduction, 4, 1).
@@ -80,7 +81,7 @@ overhead(reduction, 5, 1).
 overhead(reduction, 6, 1).
 overhead(reduction, 7, 1).
 overhead(reduction, 8, 1).
-overhead(reduction, 9, 1).
-overhead(reduction, 10, 208).
-overhead(reduction, 11, 628).
-overhead(reduction, 12, 1175).
+overhead(reduction, 9, 20).
+overhead(reduction, 10, 261).
+overhead(reduction, 11, 826).
+overhead(reduction, 12, 1238).

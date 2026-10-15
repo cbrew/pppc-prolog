@@ -350,7 +350,8 @@ integer_string(N, S) :-
 %   iterations; every cost is that time divided by the integer
 %   addition's, rounded, at least 1. cost(loop) is one iteration of
 %   the empty loop, cost(param) the extra time of a call with one
-%   argument. Options gives iterations(I).
+%   argument. unit_seconds is the integer addition's time. Options
+%   gives iterations(I).
 normalise(Samples, Options, Facts) :-
     option(iterations(I), Options),
     probes(Probes),
@@ -369,7 +370,7 @@ normalise(Samples, Options, Facts) :-
     findall(F, ( member(E-T, Times), entry_fact(E, T, Loop, Call, Call1, Add, F) ),
             Ops),
     findall(F, overhead_fact(Samples, Add, F), Overheads),
-    append([Ops, [default_trips(25)], Overheads], Facts0),
+    append([Ops, [default_trips(25), unit_seconds(Add)], Overheads], Facts0),
     order_facts(Facts0, Facts).
 
 op_time(Samples, K, E, I, T) :-
@@ -441,7 +442,7 @@ median_list(Xs0, M) :-
     ).
 
 %   Facts in the order of the table format: operators, functions,
-%   cost/2, default_trips, overheads.
+%   cost/2, default_trips, unit_seconds, overheads.
 order_facts(Facts0, Facts) :-
     map_list_to_pairs(fact_rank, Facts0, Ranked),
     keysort(Ranked, Sorted),
@@ -452,7 +453,8 @@ fact_rank(cost_op1(_, _, _), 2).
 fact_rank(cost_func(_, _), 3).
 fact_rank(cost(_, _), 4).
 fact_rank(default_trips(_), 5).
-fact_rank(overhead(_, _, _), 6).
+fact_rank(unit_seconds(_), 6).
+fact_rank(overhead(_, _, _), 7).
 
                  /*******************************
                  *            OUTPUT            *
